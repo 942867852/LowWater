@@ -1,0 +1,19 @@
+# 统一按 LF 存入仓库，避免跨平台行尾污染（尤其头文件与文档）
+* text=auto eol=lf
+
+# 源码与文档明确按文本处理
+*.h    text eol=lf
+*.cpp  text eol=lf
+*.md   text eol=lf
+*.py   text eol=lf
+*.sh   text eol=lf
+*.bat  text eol=crlf
+
+# 二进制
+*.exe  binary
+*.dll  binary
+*.lib  binary
+*.a    binary
+*.png  binary
+*.jpg  binary
+*.wav  binary

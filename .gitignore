@@ -1,0 +1,24 @@
+# 构建产物
+/build/
+/out/
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.pdb
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln
+
+# WorkBuddy 会话数据（不属于仓库）
+.workbuddy/
+
+# 临时文件
+*.tmp
+*.log
