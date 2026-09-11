@@ -120,11 +120,14 @@ public:
         }
     }
 
-    // 显式恢复（save/load 用）：S0 §C3 要求恢复后首 tick == savedTick + 1，
-    // 故这里设置的是【已执行的最后一个 tick】，下一次 onSimTick 即为 +1。
+    // 显式恢复（save/load 用）：S0 §C3 要求恢复后首 tick == savedTick + 1。
+    // 注意 absTick() 的语义是【下一个将执行的 tick】（advanceMs 先回调 onSimTick(absTick())
+    // 再 advanceOneMinute），故须把日历位置设为 lastExecutedAbsTick + 1，
+    // 这样恢复后的首个 onSimTick 才恰好是 savedTick + 1（不跳号、不重复、不补跑）。
     void restoreAt(int64_t lastExecutedAbsTick) {
-        dayKey_      = dayKeyOf(lastExecutedAbsTick);
-        minuteOfDay_ = minuteOfDayOf(lastExecutedAbsTick);
+        const int64_t nextAbsTick = lastExecutedAbsTick + 1;
+        dayKey_      = dayKeyOf(nextAbsTick);
+        minuteOfDay_ = minuteOfDayOf(nextAbsTick);
         accMilliGameSec_ = 0;
         stepsLastFrame_ = 0;
     }
