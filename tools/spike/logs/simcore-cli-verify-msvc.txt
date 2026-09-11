@@ -1,0 +1,10 @@
+simcore_cli verify  seed=20250910 days=5
+  day     tick-mode           fastforward       
+  1       F7A114BA6B4DCE04      F7A114BA6B4DCE04
+  2       F97EEA774BC2E16A      F97EEA774BC2E16A
+  3       BA4DB2D23625049B      BA4DB2D23625049B
+  4       DA6C0B4E68ACCBC8      DA6C0B4E68ACCBC8
+  5       1679F7C91D4EA88E      1679F7C91D4EA88E
+  逐 60-tick 检查点比对：120 个，mismatch=0
+  耗时：tick=5.709 ms  fastforward=5.892 ms
+  RESULT: PASS（快进 ≡ 逐 tick，逐位相同）

@@ -1,0 +1,8 @@
+$ ./build/simcore_cli.exe run --seed 20250910 --days 5 --mode tick
+simcore_cli run  seed=20250910 days=5 mode=tick entities=120
+  day  1  worldHash=F7A114BA6B4DCE04      3.999 ms
+  day  2  worldHash=F97EEA774BC2E16A      4.000 ms
+  day  3  worldHash=BA4DB2D23625049B      4.000 ms
+  day  4  worldHash=DA6C0B4E68ACCBC8      4.002 ms
+  day  5  worldHash=1679F7C91D4EA88E      4.000 ms
+  total     20.001 ms   events=1455 links=610 violations=0 full=32

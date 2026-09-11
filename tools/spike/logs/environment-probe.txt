@@ -1,0 +1,32 @@
+=== OS / host ===
+MINGW64_NT-10.0-19045 DESKTOP-ANSU2HE 3.6.9-b4195d69.x86_64 2026-06-06 17:49 UTC x86_64 Msys
+=== compilers ===
+-- MinGW g++ --
+g++.exe (MinGW.org GCC-6.3.0-1) 6.3.0
+Copyright (C) 2016 Free Software Foundation, Inc.
+-- MinGW C++17 library probe (expected FAIL: no <string_view>) --
+build/_probe/c17b.cpp:1:23: fatal error: string_view: No such file or directory
+ #include <string_view>
+                       ^
+compilation terminated.
+-- cmake (VS2026 bundled) --
+cmake version 4.1.1-msvc1
+-- ninja (VS2026 bundled) --
+1.12.1
+-- MSVC toolsets --
+14.44.35207
+14.50.35717
+-- python --
+Python 3.13.14
+-- git --
+git version 2.55.0.windows.3
+=== GPU / display (EnumDisplayDevices) ===
+--- display adapters ---
+adapter[0] name='\\.\DISPLAY1' desc='NVIDIA GeForce GT 730' flags=0x5
+adapter[1] name='\\.\DISPLAY2' desc='NVIDIA GeForce GT 730' flags=0x0
+adapter[2] name='\\.\DISPLAY3' desc='Todesk Virtual Display Adapter' flags=0x0
+adapter[3] name='\\.\DISPLAY4' desc='Todesk Virtual Display Adapter' flags=0x0
+adapter[4] name='\\.\DISPLAY5' desc='Todesk Virtual Display Adapter' flags=0x0
+--- monitors ---
+total_adapters=5
+mode=1920x1080 @60Hz bpp=32

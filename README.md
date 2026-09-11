@@ -40,13 +40,25 @@ tools/                         辅助脚本
 
 ## 构建与运行
 
-本仓库当前以 **MinGW GCC 6.3.0** 作为可编译下限验证（本机无 cmake / make / MSVC）。
+本机工具链（实测，2026-09-11 更正）：
+
+| 工具 | 位置 | 说明 |
+|---|---|---|
+| MinGW GCC 6.3.0 | `C:\MinGW\bin\g++` | **标准上限 `c++17`，但 `-std=c++17` 无 `<string_view>`**；`c++2a` 失败。可靠可用的是 `-std=c++14` |
+| MSVC 19.44 | `D:\VS2026\VC\Tools\MSVC\14.44.35207` | 完整 C++17/20 支持；**编本项目源码必须加 `/utf-8`**，否则中文常量报 `C2001` |
+| CMake 4.1.1 | `D:\VS2026\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin` | 可用（此前误记为"无 cmake"） |
+| Ninja 1.12.1 | 同上的 `Ninja\` 子目录 | 可用 |
 
 ```bash
-# 编译并运行烟雾测试
-g++ -std=c++14 -O2 -Wall -Wextra -I src tests/smoke.cpp -o build/smoke.exe
-./build/smoke.exe
+# MinGW 路径（C++14 子集，simcore 的验证下限）
+g++ -std=c++14 -O2 -Wall -Wextra -I src tests/test_runner.cpp -o build/test_runner.exe
+./build/test_runner.exe
+
+# MSVC 路径（C++17/20，用于 godot-cpp 桥接层）
+cl /utf-8 /std:c++14 /O2 /EHsc /I src tests/test_runner.cpp /Fe:build\test_runner_msvc.exe
 ```
+
+两条工具链产出的 `worldHash` 已实测**逐位相同**（见 `tools/spike/logs/`）。
 
 **标准纪律**：正式目标为 C++20；为保证可移植性与当前工具链可验证，`src/simcore/` 一律按 **C++14 兼容子集**编写——禁止使用 C++17/20 特性（`string_view` / `variant` / `optional` / 结构化绑定 / `if constexpr` / concepts 等）。下限越低，换用 MSVC 或新版 MinGW-w64 时越不会出问题。
 
@@ -66,10 +78,13 @@ g++ -std=c++14 -O2 -Wall -Wextra -I src tests/smoke.cpp -o build/smoke.exe
 - [x] Phase 1 概念孵化
 - [x] Phase 2 系统设计（8 份 GDD + 一致性评审）
 - [x] Phase 3 技术搭建（架构 + 5 条 ADR + 可访问性 + 控制清单）
-- [ ] Phase 3 · simcore L1 骨架（进行中：头文件已就位，测试套件与 CLI 待补）
+- [x] Phase 3 · simcore L1 骨架（9 用例 / 55 检查点全 PASS，双工具链 hash 逐位相同）
+- [x] Phase 2 · GDD 全集闭合（S0–S9 共 10 份）
+- [x] 引擎选型（ADR-001 终版：`simcore` + Godot 4；8 条条件全 PASS，**待用户确认**）
 - [ ] Phase 4 预制作 / 垂直切片
 
-## 已知阻塞
+## 已知阻塞与放行闸门
 
-- **引擎选型未拍板**（ADR-001）：推荐 `simcore`（C++20 静态库 + C ABI，引擎无关）+ Godot 4 表现层。待用户决断；不阻塞 simcore L1。
-- **S8 区域内容 / S9 呈现交互两份 GDD 未写**：`ContainerDef`、路程常量表、UI 布局缺位，垂直切片前必须补齐。
+- **引擎选型待用户确认**（ADR-001）：`simcore`（C++ 静态库 + C ABI，引擎无关）+ Godot 4 表现层。
+- **放行闸门 1**：`godot-cpp` 完整构建未跑通（沙箱禁止 `cmd` 派生进程，属环境限制非工具链缺失）——需在普通终端跑 `scons platform=windows api_version=4.7`。
+- **放行闸门 2**：**GTX 1060 真机渲染冒烟未做**（开发机为 GT 730）。E4 目前是"可复现推算"（最坏帧 10.68ms / 16.7ms），垂直切片前必须转实测。

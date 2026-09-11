@@ -1,0 +1,45 @@
+================================================================================
+E5 · 总拥有成本 · 可核查来源摘录（PHASE3-003 · 抓取日 2026-09-11）
+================================================================================
+
+[Godot]  —— 判定：可直接核验
+  来源 1（许可证正文，已随包下载）：
+    https://raw.githubusercontent.com/godotengine/godot/4.7.2-stable/LICENSE.txt
+    -> 全文见 tools/spike/logs/godot-LICENSE-4.7.2-stable.txt
+    首行："Copyright (c) 2014-present Godot Engine contributors ..."
+    即为 MIT（Expat）条文。
+  来源 2（官方许可页，本机可访问，HTTP 200）：
+    https://godotengine.org/license/
+    摘录："free and open source software released under the permissive MIT license
+           (also named Expat license)."
+           "Godot Engine's license terms and copyright do not apply to the content
+           you create with Godot."
+  => 无版税、无订阅、无 per-seat、无营收门槛。商业闭源分发允许。
+
+[Unreal Engine]  —— 判定：官方页可核验
+  来源：https://www.unrealengine.com/en-US/license   （本机 HTTP 200）
+  摘录：
+    "Under $1 million USD in revenue? Free"
+    "Game developers (royalties apply after $1 million USD gross product revenue)"
+    "will be subject to a 5% royalty"
+    "Seat-based  If you're using Unreal Engine for commercial purposes, have
+     generated more ..."   （>$1M 的另一条 seat 计费路径）
+  => 结构：$1M 前免费；超过后 5% 版税（Epic Games Store 内销售免版税）；
+     或走 seat 计费。**对 10 人以内小团队、独立发行，成本结构明显重于 MIT。**
+
+[Unity]  —— 判定：本机无法抓取，标注为"待用户/主理人以官方公告核实"
+  https://unity.com/pricing                     -> 本机不可达（连接失败）
+  https://unity.com/products/compare-plans      -> 本机不可达（连接失败）
+  已知（需官方页确认，本文件不视为已核验来源）：
+    - Unity 分 Personal / Pro / Enterprise 等订阅档位，Personal 有营收/募资上限。
+    - 2023-09 Unity 宣布 "Unity Runtime Fee"（按安装量计费），引发强烈反弹，
+      2023-09-22 公开致歉并修改；2024-09 宣布取消 Runtime Fee，回归按席位订阅。
+    - 该事件是本项目 E5「长期政策风险」的**唯一具名历史案例**：
+      计费口径可在一次公告内改变整个项目的成本模型。
+  => 结论方向不变（订阅 + 政策可变），但**具体数字必须由主理人以官方页确认**，
+     本文不引用未经本机核验的 Unity 数字。
+
+================================================================================
+方法论：本文件只登记"本机实际抓取到"的文本。抓不到的一律标"待核"，
+       不以记忆充数——这条纪律与 ADR-001 §6 知识缺口一致。
+================================================================================

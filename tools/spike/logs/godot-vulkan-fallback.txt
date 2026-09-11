@@ -1,0 +1,22 @@
+$ godot --path <win> --script res://gpu.gd --rendering-driver vulkan
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+vkEnumerateInstanceVersion not available, assuming Vulkan 1.0.
+ERROR: Condition "err != VK_SUCCESS" is true. Returning: ERR_CANT_CREATE
+   at: _initialize_devices (drivers/vulkan/rendering_context_driver_vulkan.cpp:844)
+ERROR: Condition "err != OK" is true. Returning: err
+   at: initialize (drivers/vulkan/rendering_context_driver_vulkan.cpp:921)
+ERROR: No support for any of the suitable shader models (6.0-6.6) has been found.
+   at: _check_capabilities (drivers/d3d12/rendering_device_driver_d3d12.cpp:6154)
+ERROR: Condition "err != OK" is true. Returning: ERR_CANT_CREATE
+   at: initialize (drivers/d3d12/rendering_device_driver_d3d12.cpp:6402)
+ERROR: Failed to initialize driver for device.
+   at: initialize (servers/rendering/rendering_device.cpp:8376)
+WARNING: Your video card drivers seem not to support Direct3D 12 or Vulkan, switching to OpenGL 3.
+   at: DisplayServerWindows (platform/windows/display_server_windows.cpp:8136)
+ERROR: Can't create shader cache folder, no shader caching will happen: user://
+   at: RasterizerGLES3 (drivers/gles3/rasterizer_gles3.cpp:345)
+OpenGL API 3.3.0 NVIDIA 391.35 - Compatibility - Using Device: NVIDIA - GeForce GT 730
+
+display_driver=Windows
+adapter=GeForce GT 730
+api=3.3.0 NVIDIA 391.35

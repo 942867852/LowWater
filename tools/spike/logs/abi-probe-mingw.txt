@@ -1,0 +1,10 @@
+$ g++ -std=c++14 -O2 -I <repo>/src -c simcore_abi.cpp -o simcore_abi.o   (MinGW GCC 6.3.0)
+$ ar rcs libsimcore_abi.a simcore_abi.o
+$ gcc -O2 consumer.c -o consumer.exe -L. -lsimcore_abi -lstdc++   (pure C consumer)
+--- run ---
+abi_schema_major=1
+roll_a=3837809865 roll_b=3837809865 (repeat_identical=1)
+roll_dt60=3837809865 roll_dt9999=3837809865 (frame_dt_irrelevant=1)
+seed64_via_abi=3760753048317535623
+ABI_PROBE_OK
+exit=0

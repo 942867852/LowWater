@@ -1,0 +1,9 @@
+$ godot <win-path> --rendering-driver opengl3 (windowed)
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+ERROR: Can't create shader cache folder, no shader caching will happen: user://
+   at: RasterizerGLES3 (drivers/gles3/rasterizer_gles3.cpp:345)
+OpenGL API 3.3.0 NVIDIA 391.35 - Compatibility - Using Device: NVIDIA - GeForce GT 730
+
+display_driver=Windows
+adapter=GeForce GT 730
+api=3.3.0 NVIDIA 391.35

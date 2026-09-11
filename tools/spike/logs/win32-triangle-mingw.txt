@@ -1,0 +1,5 @@
+$ gcc -O2 tri.c -o tri_mingw.exe -lgdi32   (MinGW GCC 6.3.0)
+--- run (creates a real window, draws triangle via GDI) ---
+WINDOW_OK hwnd=001F0534
+PUMPED 12 msgs; GDI triangle drawn
+exit=0

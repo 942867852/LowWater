@@ -1,0 +1,11 @@
+$ gcc -O2 gpu.c -o gpu.exe
+--- run ---
+--- display adapters ---
+adapter[0] name='\\.\DISPLAY1' desc='NVIDIA GeForce GT 730' flags=0x5
+adapter[1] name='\\.\DISPLAY2' desc='NVIDIA GeForce GT 730' flags=0x0
+adapter[2] name='\\.\DISPLAY3' desc='Todesk Virtual Display Adapter' flags=0x0
+adapter[3] name='\\.\DISPLAY4' desc='Todesk Virtual Display Adapter' flags=0x0
+adapter[4] name='\\.\DISPLAY5' desc='Todesk Virtual Display Adapter' flags=0x0
+--- monitors ---
+total_adapters=5
+mode=1920x1080 @60Hz bpp=32

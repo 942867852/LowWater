@@ -1,0 +1,52 @@
+================================================================================
+tools/spike · 版本与校验（ADR-001 引擎选型实测证据 · PHASE3-003）
+本文件是实测产物的版本指纹。所有数字均为本机实测，不是估算。
+================================================================================
+
+[1] Godot Engine（spike 二进制 · 实测已在跑）
+--------------------------------------------------------------------------------
+version      : 4.7.2.stable.official.ed1daf0bf
+asset        : Godot_v4.7.2-stable_win64.exe.zip
+release page : https://github.com/godotengine/godot/releases/tag/4.7.2-stable
+released_at  : 2026-08-17（来自 GitHub Releases API）
+zip size     : 86,013,866 bytes  (82.0 MiB)
+zip sha256   : 731980f9608d61333e5baf54a2ef17210acc7a538446c0cb9969f002aca1e953
+zip sha512   : 83decd58fdf67b9d657958a1ae6bf1929c20785315a81effe245874cdc57acb7
+               09bf868e00778a96984338c1b29dafdb453c6847747694621c6ecf5da2259993
+official sum : SHA512 与 release 附件 SHA512-SUMS.txt 逐字相同 —— 已校验
+exe size     : 180,858,888 bytes (Godot_v4.7.2-stable_win64.exe)
+               + 198,152 bytes (…_console.exe)
+解压后总体积 : ≈ 172.6 MiB（单目录，免安装）
+
+  重要 · 下载路径（本机 github release 主机被代理拦截）：
+    直连 https://github.com/godotengine/godot/releases/download/... 
+      -> curl: (56) CONNECT tunnel failed, response 502   （objects.githubusercontent.com 被代理拒绝）
+    可用路径（实测 HTTP 206）：
+      https://gh-proxy.com/https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64.exe.zip
+    校验和亦可通过同一加速器取 SHA512-SUMS.txt。
+
+[2] 本机工具链（实测）
+--------------------------------------------------------------------------------
+MinGW g++  : 6.3.0  (MinGW.org, C:\MinGW\bin)   -> -std=c++14 可用；-std=c++17 无 <string_view>，不可用
+MSVC cl    : 19.44.35221 for x64  (D:\VS2026, toolsets 14.44.35207 与 14.50.35717)
+cmake      : 4.1.1-msvc1   (D:\VS2026\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin)
+ninja      : 1.12.1        (same tree)
+Windows SDK: 10.0.26100.0  (D:\Windows Kits\10)
+vsdevcmd   : D:\VS2026\Common7\Tools\VsDevCmd.bat
+vcvars64   : D:\VS2026\VC\Auxiliary\Build\vcvars64.bat
+python     : 3.13.14
+git        : 2.55.0.windows.3
+scons      : 4.11.1 (pip install --target 隔离安装，未污染全局)
+
+[3] 本开发机 GPU（实测 · 注意：这【不是】目标机）
+--------------------------------------------------------------------------------
+adapter      : NVIDIA GeForce GT 730  (\\.\DISPLAY1, \\.\DISPLAY2)
+driver       : 391.35  （OpenGL 3.3 / 无 Vulkan ICD / 无 D3D12 SM6）
+其他适配器   : Todesk Virtual Display Adapter ×3
+display mode : 1920x1080 @60Hz 32bpp
+=> Godot 渲染回退链实测：Vulkan FAIL -> D3D12 FAIL -> OpenGL 3.3 OK
+=> 目标机是 GTX 1060 6GB，本机不是；E4 因此只能"可复现推算"，不能在本机实测。
+
+[4] 生成这些文件的命令
+--------------------------------------------------------------------------------
+见 tools/spike/logs/*.txt 文件头（每个日志首行是被执行的命令）。

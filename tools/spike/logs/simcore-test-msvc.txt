@@ -1,0 +1,56 @@
+$ cl /nologo /utf-8 /std:c++14 /O2 /EHsc /I src tests/test_runner.cpp   (MSVC 19.44)
+test_runner.cpp
+--- run ---
+================================================================
+ simcore L1 验证套件（10 条用例）
+ 版本: gameVersion=0.1.0-l1 simSchema=1 streamRegistry=1
+================================================================
+CASE 1 · ADR-002 分流独立性/无状态/乱序无关/跳步
+    1a value(seed=20250910, scavenge, tick=1440, seq=0) = 2565770646
+  => PASS
+CASE 2 · ADR-002 存档往返逐位相同（10 日）
+    2 存档字节数 = 14851（不含任何 per-stream counter）
+    2 读档后首块 EB41ADBFA7F3EC24 == 参考 EB41ADBFA7F3EC24 ；末块 C6877F247DCE2E82
+    2 逐位比对：prefix mism=0, post mism=0（共 312 个检查点）
+  => PASS
+CASE 3 · ADR-005 定点无漂移 + 浮点漂移演示
+    3 定点终值 = -1820000 milli (-1820.000)；浮点参考 = -1820.000000001；最大偏差 = 0.666667 milli
+    3 定点零饱和：satAdd=0 satMul=0 divByZero=0
+    3 浮点漂移演示：Σ0.1×14400 = 1439.99999999978581400（精确值 1440.0，差 -2.142e-10）
+  => PASS
+CASE 4 · 裁决 27 时间口径（1440s = 1440 tick）
+    4b 累计 tick=10，首 tick=1440，末 tick=1449，clampedFrames=2
+  => PASS
+CASE 5 · 裁决 28 视锥无关性
+    5a yaw 变→hash 不变；renderLOD 受相机影响 = 是（符合预期）
+    5b 距离变化：fullCount 32 → 3，hash 已变 → 变
+  => PASS
+CASE 6 · A-3 快进 ≡ 逐 tick（逐位相同）
+    6 逐 tick 序列(前6): 511DC863 F095ABCD 6B2CFA25 9153A1FB 4606426E 565CDF44
+    6 快进  序列(前6): 511DC863 F095ABCD 6B2CFA25 9153A1FB 4606426E 565CDF44
+    6 逐位比对 mism=0 / 120
+  => PASS
+CASE 7 · 事件总线归因链（step>3 检出）
+    7a 链长=4，检出违规数=1（step=4）
+  => PASS
+CASE 8 · 写队列快照语义 + 排序键
+    8b 应用序 priority = [1 1 2 3]，actorId = [7 20 5 10]
+  => PASS
+CASE 9 · 性能实测（120 实体）
+    9 CPU = unknown(i5-13400F)
+    9a 120 实体 × 14400 tick = 12.100 ms 总；平均 0.000840 ms/tick；FULL=32
+    9a 架构文档推算基线：单帧最坏 4.880ms、摊销 0.057ms/帧
+    9b 8 游戏小时（480 tick）快进 ×200 = 63.183 ms 总；平均 0.316 ms/次（架构推算 18.7ms / 上限 800ms）
+  => PASS
+CASE 10 · ADR-005 对称取整 + golden 向量 + 舍入边界
+    10a golden mulM 向量：484 条，未命中 0 条
+    10b golden divM 向量：492 条，未命中 0 条
+    10c 对称性违例：mulM=0, divM=0（跨 484+492 条向量）
+    10d mulM(+2500,1)=+3 (=+0.003)   mulM(-2500,1)=-3 (对称)
+    10d mulM(+1500,1)=+2 (=+0.002)   mulM(-1500,1)=-2 (对称)
+    10d mulM(+500,1)=+1 (=+0.001)   mulM(-500,1)=-1 (对称)
+  => PASS
+================================================================
+ 用例: 10 PASS / 0 FAIL    检查点: 60 个，失败 0 个
+ 结果: ALL PASS
+================================================================
