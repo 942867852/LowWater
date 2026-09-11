@@ -371,20 +371,39 @@ RefId = "<system>.<entityType>.<id>[.<field>]"   例：S5.post.he_valley.water_0
 | `GOSSIP_FANOUT_MAX` | 3 | 跳 |
 | `MEMORY_SHORT_DAYS / IMPRESSION_MAX` | 7 / 5 | 天 / 条 |
 | `REPUTATION_DECAY` | ×0.97 / 日 | |
+| `ROAD_WINDING_MUL` | 1.10 | 布线折返系数（S8 §2.3 边长已含；**来源 S8 附录 A-1 · 裁决 B-2**） |
+| `TIME_VALUE_RU_PER_GAME_MIN` | 0.03 | RU / 游戏分钟（`C_trip` 换算；**来源 S8 附录 A-2 · 裁决 B-2**） |
+| `STAMINA_VALUE_RU_PER_POINT` | 0.05 | RU / 耐力点（`C_stamina` 换算；**来源 S8 附录 A-2 · 裁决 B-2**） |
+| `ENCOUNTER_LOSS_RATE` | 0.25 | = S3 A-16 `LOSS_RATE`；单次遭遇平均损失**载货价值的 25%**（**来源 S8 附录 A-3 · 裁决 B-2**） |
+
+> **S8 裁决补充（B-2）**：`C_trip` 采用**往返**口径（`C_trip = 2 × travelMin × TIME_VALUE_RU_PER_GAME_MIN + C_stamina`），单程口径**作废**（裁决 B-1）。`ROUTE_P_MIN / P_MAX` 为**逐路线静态配置**（按 `pathLenMeters` 与路线强制遭遇点给出），**非全局常量**，不登记本表；其唯一来源为 S8 §2.3。其余 S8 附录 A 常量以本表为唯一生效处。
 
 **ID 命名规范（强制执行）**
 ```text
 ActorId     : "player" | "npc.<community>.<role>_<nn>" | "anon.<nnn>"   例 npc.he_valley.water_03
 CommunityId : "he_valley" | "jing_cell"
-PostId      : "<community>.<role>_<nn>"   role ∈ {water, watch, patrol, mend, care}
+PostId      : "<community>.<role>_<nn>"   role ∈ {water, watch, patrol, mend, care}   // 伪岗 idle_00 见 S2 §2.3
 ClusterId   : WATER | FUEL | AMMO | MEDS | SEED | FOOD   // 6 键（裁决 C-17/C-26）；TT 通货子集 = 前 5 键
 DayKey      : int，从 1 起｜MinuteOfDay : int 0..1439｜Quality : float 0.4..1.5
+LocationId  : "<zoneId>.<kind>_<nn>"   kind ∈ {gate, board, stock, post, market, landmark, exit}   // 来源 S8 §2.2 · 裁决 B-3/B-5
+Post.locationId : "<community>.post_<role>_<nn>"   // 与 PostId 一一对应（S8 §2.2 · S5 §5.1）
+KnowledgeId : "knowledge.<topic>"   // 史线碎片 refId 命名空间，供 S4 RevealKnowledge 与 S8 程九 RebuttalPoint.requires 引用（来源 S8 §2.7 · 裁决 B-4）
 ```
 **`Quantity.cluster → unit` 固定映射（不得自定义）**：`WATER→"L"`，`FUEL→"L"`，`AMMO→"rd"`，`MEDS→"dose"`，`SEED→"portion"`，**`FOOD→"portion"`**。
 
 > **裁决 C-17 / C-26（PHASE2-REVIEW 回填）**：`ClusterId` 由 5 键扩为 **6 键**，新增 **`FOOD`（口粮，单位 `portion`，`tradable = false`）**。
 > **权威声明**：本行（§D）是全项目 `ClusterId` 的**唯一权威枚举**，S3 §2.2 / S1 §2.x 为引用方，不得再各自声明枚举。
 > **边界**：`FOOD` 进 `Warehouse.stock` · 配给 · `SAFE_DAYS` 分子 · `reservedByPromise` · `ItemSpec.cluster`；**不进** `PriceTable / quote / execTrade`（S3 实现期静态断言）。"五簇通货"称谓不变。
+
+**`protectedActors` 名单（全局唯一定义处 · 裁决 B-3/B-5 · 来源 S8 §2.6；与 S4 §2.6 / S5 §5.5 / S2 §2.3 同一份，禁止实现成两份）**
+
+| # | actorId | 岗位 | `successorActorId` | 备注 |
+|---|---|---|---|---|
+| 1 | `npc.he_valley.mend_01` | `he_valley.mend_01` | `npc.he_valley.patrol_01` | 程九；样板角色。河谷 `mend` 岗 `rated==1`，无同岗次席，故 successor 取同社区备位者（**能力缺口为刻意 P4 叙事材料**） |
+| 2 | `npc.jing_cell.care_01` | `jing_cell.care_01` | `npc.jing_cell.mend_01` | MEDS/SEED 唯一知识源与产地 |
+| 3 | `npc.he_valley.water_01` | `he_valley.water_01` | `npc.he_valley.water_02` | 取水岗首席；`water_02` 为水岗**同岗次席** |
+
+> **硬约束**：① 名单**全局唯一一份**（≤3），S0·B LOD `PROTECTED` 档 / S2 §2.3 `PROTECTED` 行为树与本表**同源**，**禁止实现成两份**（裁决 C-27）；② 每条 `successorActorId` **非空**且**全局单射**——**无任何 actor 被两个岗位引用**（`--assert-successor-injective`）；③ `COARSE` 期不判死（S4 §2.6 ①②③④ 四条保护规则）。原稿 `water_02` 兼任 `mend_01`+`water_01` 两处 successor 的确定性缺陷已按 S8 §2.6 裁决拆解：同 seed 下同时杀死两名 protected actor，继承结果**与死亡顺序无关**。
 
 ---
 

@@ -3,6 +3,7 @@
 - **状态**：**已提出，待确认后生效**（若被否决，`simcore` 无法进入实现）
 - **日期**：Phase 3 · PHASE3-001
 - **相关**：S0 §C7-3（禁 `double` 与超越函数）、S0 §D 常量表、S1、S3 价格递推、ADR-002
+- **修订**：PHASE3-L1-Q1（2025-09-11）——D1 取整口径改为【对称取整（round half away from zero）】；V3/D4 明确 CI 只统计未定义 `SIMCORE_ENABLE_REFERENCE_FLOAT` 的正式 TU，并剔除 `[CI-EXCLUDE-BEGIN]..[CI-EXCLUDE-END]` 区块
 - **起因**：S0 §C7-3 只给了禁令（"禁止 `double` 与超越函数"），没给**替代表示**。不先定这个，每个系统会各自选，逐位复现立刻崩。
 
 ---
@@ -64,15 +65,38 @@ using MilliL = int64_t;    // 中间运算类型，防溢出；运算后立即�
 **乘法/除法规则（唯一实现，禁止各自写）**：
 
 ```cpp
-inline Milli  mulM(Milli a, Milli b) { return (Milli)(((int64_t)a * b + 500) / 1000); }  // 四舍五入
-inline Milli  divM(Milli a, Milli b) { return (Milli)(((int64_t)a * 1000 + (b/2)) / b); } // b != 0 断言
-inline Milli  addSat(Milli a, Milli b);   // 饱和加减，溢出即断言（debug）/ 夹到边界（release + 计数上报）
+// 取整口径：round half away from zero（对称取整）。C++ 整数除法向零截断，
+// 故负分支对 |积| 做 +500 再截断，即得 half-away。
+inline Milli  mulM(Milli a, Milli b);   // round_half_away(a*b / 1000)
+inline Milli  divM(Milli a, Milli b);   // round_half_away(a*1000 / b)；b != 0 断言
+inline Milli  addSat(Milli a, Milli b); // 饱和加减，溢出即断言（debug）/ 夹到边界（release + 计数上报）
 ```
 
 - **加减**：直接整数加减（同量纲），溢出用饱和 + 断言。
-- **乘**：先升 `int64`，除以 1000 归位，**四舍五入**（`+500`）——必须在同一处实现，避免各家取整方向不同。
-- **除**：先升 `int64`，先乘 1000 再除。
+- **乘 / 除**：先升 `int64`，归位（乘除 1000）后用**对称取整**（round half away from zero）——
+  必须在同一处实现，避免各家取整方向不同。恒有 `mulM(-a,b) == -mulM(a,b)`、
+  `divM(-a,b) == -divM(a,b)`、`divM(a,-b) == -divM(a,b)`。
 - **比较**：整数比较，无容差。
+
+#### D1-a · 取整口径（对称取整）与修正原因（PHASE3-L1-Q1 · 2025-09-11）
+
+| 口径 | 表达式（乘积 p） | `+2.5` | `-2.5` | 评价 |
+|---|---|---|---|---|
+| 旧（向 +∞ 偏置） | `(p + 500) / 1000` | `+3` | `-2` | ❌ 负侧单向偏置 → 系统性漂移 |
+| **新（对称取整）** | `sign(p) · round(|p| / 1000)` | `+3` | `-3` | ✅ 借贷对称，无净漏损 |
+
+**修正原因**：原口径对**负积**是「向 +∞ 方向偏置」（`-2.5 → -2`）。资源模拟里经济系统存在
+**借贷对称性**（S3 的 `reservedByPromise`、S4 的 DELIVER/违约 delta 都有正负两向），单向偏置是
+**系统性漂移源**，会让长期账目持续漏损且难以归因，故裁决改为对称取整。`divM` 原式
+`(a*1000 + b/2)/b` 在**除数有符号 / 异号**时同源偏置（`divM(-100000,3000)` 旧值 `-33332`，应为 `-33333`），
+一并修正。
+
+**验证要求**：对全部测试向量恒有 `op(-x) == -op(x)`；`±2.5 / ±1.5 / ±0.5` 三个舍入边界逐位验证。
+golden 向量见 `tests/golden_fixed_vectors.h`（生成器 `tools/gen_golden_fixed.py`，可复现重算）。
+
+#### D1-b · `divIntM`（纯整数截断除）语义声明（PHASE2-CLOSING 补记）
+
+> `divIntM` 的语义**明确为"向零截断"**（C++ 整数除法本身即对称，`a/b == -(-a/b)`），**不与 `mulM/divM` 的"对称舍入"合并**——改它反而引入舍入错误。故 `divIntM` **禁止在精度敏感路径使用**（如价格递推、账目结算、概率/权重换算等依赖对称性、对舍入方向敏感的计算），仅可用于不累积舍入偏差的整数计数场景。
 
 ### D2 · 各量的定点刻度（唯一映射表）
 
@@ -101,7 +125,10 @@ inline Milli  addSat(Milli a, Milli b);   // 饱和加减，溢出即断言（de
 static_assert(sizeof(Milli) == 4);
 // debug 构建：所有 mulM/divM 溢出 → assert 中断
 // release   ：饱和 + 计数上报（每日汇总进 debug 面板）
-// CI 静态检查：rg '\bdouble\b|\bfloat\b|std::sin|std::cos|std::exp|std::pow|std::log|std::sqrt' simcore/ 必须为空
+// CI 静态检查（V3 口径见下）：只统计【未定义 SIMCORE_ENABLE_REFERENCE_FLOAT 的正式 TU】
+//   （src/simcore/*.h,*.cpp），扫描前剔除 [CI-EXCLUDE-BEGIN]..[CI-EXCLUDE-END] 区块与注释；
+//   命中 'double|float|std::sin|std::cos|std::exp|std::pow|std::log|std::sqrt' 数必须为 0
+//   执行：./build.sh check
 ```
 > **`float` 也禁**（不只 `double`）：原因是仿真侧不该有任何 IEEE 浮点；渲染侧照常用 `float`，但**不跨界**（ADR-001 R1）。
 
@@ -135,9 +162,13 @@ static_assert(sizeof(Milli) == 4);
 |---|---|---|
 | **V1 · 常量精确性** | 单测：S0 §D + S1 附录 A 全部常量 `round(v*scale) == v*scale` | 失败数 = 0 |
 | **V2 · 递推一致性** | 10 日价格递推：milli vs `double` 参考实现 | `max abs Δ < 1e-3`；milli 版两次运行逐位相同 |
-| **V3 · 无浮点** | CI 静态检查（D4） | 命中数 = 0 |
+| **V3 · 无浮点** | CI 静态检查（D4；只统计正式 TU，剔除 CI-EXCLUDE 区块与注释） | 命中数 = 0 |
 | **V4 · 溢出审计** | 跑 30 日，统计 `mulM/divM` 饱和计数 | 计数 = 0 |
 | **V5 · 查表精度** | `sinTurn` 与 `std::sin` 在 65536 采样点比对 | `max abs Δ < 2e-3`（含插值误差），且两次运行逐位相同 |
+
+> **V3 口径（PHASE3-L1-Q1）**：`fixed.h` 的浮点**参考镜像**（`#ifdef SIMCORE_ENABLE_REFERENCE_FLOAT`）
+> 默认关闭，且**必须集中**在带 `// [CI-EXCLUDE-BEGIN]` / `// [CI-EXCLUDE-END]` 标记的单一区块内。
+> CI 只统计**未定义该宏的正式 TU**（该宏仅在 `tests/test_runner.cpp` 内定义），并剔除该区块与注释。
 
 ---
 
@@ -148,6 +179,8 @@ static_assert(sizeof(Milli) == 4);
 | `design/gdd/systems/00-foundation.md §C7-3` | 建议补一句：「仿真侧统一用 milli 定点（1/1000），见 ADR-005」——**不改动任何常量数值** |
 | `design/gdd/systems/00-foundation.md §D` | 常量数值**全部不动**；实现侧在 `simcore/constants.h` 里以 `Milli` 字面量落地并静态断言 |
 | `docs/architecture/control-manifest.md` | 已写入 V1–V5 门禁 |
+| `src/simcore/README.md` | §4.3/§4.4 记录取整口径与 CI 无浮点口径；§3 增用例 10 |
+| `tests/golden_fixed_vectors.h` + `tools/gen_golden_fixed.py` | golden 向量与新口径生成器（PHASE3-L1-Q1） |
 
 ---
 

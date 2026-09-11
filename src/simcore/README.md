@@ -1,6 +1,6 @@
 # simcore · L1 确定性地基
 
-> **状态**：L1 骨架完成（7 个头文件 + 9 条验证用例 + CLI）。
+> **状态**：L1 骨架完成（7 个头文件 + 10 条验证用例 + CLI）。
 > **范围**：只做「确定性地基」——固定步长时钟、可分流无状态 RNG、milli 定点、
 > 事件总线 / 归因链、跨系统写队列 + 昨日快照、最小世界 + LOD。
 > **不做**（明确出界）：NPC 行为树、经济、对话、导航。
@@ -63,7 +63,7 @@ g++ -std=c++14 -O2 -Wall -Wextra -I src tools/simcore_cli.cpp  -o build/simcore_
 
 ## 2. 怎么跑
 
-### 2.1 测试套件（9 条用例）
+### 2.1 测试套件（10 条用例）
 
 ```bash
 ./build/test_runner.exe        # 退出码 0 = 全 PASS；非 0 = 有 FAIL
@@ -82,7 +82,7 @@ g++ -std=c++14 -O2 -Wall -Wextra -I src tools/simcore_cli.cpp  -o build/simcore_
 
 ---
 
-## 3. 每个测试在验什么（9 条用例 → 契约）
+## 3. 每个测试在验什么（10 条用例 → 契约）
 
 | # | 用例 | 对应契约 | 判据 |
 |---|---|---|---|
@@ -95,6 +95,7 @@ g++ -std=c++14 -O2 -Wall -Wextra -I src tools/simcore_cli.cpp  -o build/simcore_
 | 7 | 事件总线 / 归因链 | ADR-004 D2/D3/D4/D6 | 链可回放（`replayVerify`）；`step>3` 被检出并记违规；同系统不记；UNATTRIBUTED 不静默 |
 | 8 | 写队列 + 昨日快照 | S0 已拍板 3；ADR-004 D5-1 | 当日写当日不可见 → 日切 `publish()` 后可见；应用序 = `(priority, actorId, seq)` |
 | 9 | 性能实测 | ADR-003 D4 / §5 | 120 实体每 tick 平均耗时；8 游戏小时快进耗时（**如实测量，不要求达标**） |
+| 10 | 定点取整对称性 | ADR-005 D1（修订）；PHASE3-L1-Q1 | golden 向量（484 mulM + 492 divM）全命中；`op(-x)==-op(x)`；±2.5/±1.5/±0.5 → ±3/±2/±1 |
 
 ### 关键常量（契约钉死，测试逐条断言）
 
@@ -131,20 +132,36 @@ AttributionLink{ step, causeRef, effectRef, actorIds[], dayKey }；step>3 判违
 `world.h` 用了 `std::snprintf` 但未包含 `<cstdio>`，只是碰巧因 `simcore.h` 先吞了
 `<cstdio>` 才编过。header-only 头应自包含，已补 `#include <cstdio>`。
 
-### 4.3 待主理人裁决：`mulM` 负数取整口径
+### 4.3 已修复：`mulM` / `divM` 取整口径改为【对称取整】（PHASE3-L1-Q1 · 2025-09-11）
 
-`fixed.h` 的 `mulM` 照 ADR-005 字面实现 `((int64)a*b + 500) / 1000`。
-对**负积**，`+500` 是「向 +∞ 方向偏置」（例：`p=-1600 → (-1100)/1000 = -1`，
-而「绝对值四舍五入」期望 `-2`）。本实现**严格照 ADR 字面执行**以保证逐位可复现；
-若主理人偏好「绝对值四舍五入」，改一行即可，但**必须重新生成 golden 向量**。
+**原状**：`mulM` 照 ADR-005 字面实现 `((int64)a*b + 500) / 1000`，对**负积**是「向 +∞ 偏置」：
+`mulM(-2500,1)` 旧值 `-2`，绝对值四舍五入期望 `-3`（正积因 C++ 除法向零截断而恰好正确，只有负侧漏）。
+`divM` 的 `(a*1000 + b/2)/b` 在**除数有符号 / 异号**时同源偏置（`divM(-100000,3000)` 旧值 `-33332`，应为 `-33333`）。
 
-### 4.4 待主理人裁决：CI 的「无浮点」grep 需排除参考镜像
+**裁决**：改为 **round half away from zero（对称取整）**——负数按绝对值四舍五入后取回符号：
+`+2.5 → +3`、`-2.5 → -3`。理由：非对称偏置在资源模拟里是**系统性漂移源**——经济系统存在借贷对称性
+（S3 `reservedByPromise`、S4 DELIVER/违约 delta 都有正负两向），单向偏置会让长期账目持续漏损且难以归因。
 
-ADR-005 V3 要求 `rg '\bdouble\b|\bfloat\b|...' simcore/` 命中数为 0。
-`fixed.h` 末尾的浮点**参考镜像**（`SIMCORE_ENABLE_REFERENCE_FLOAT`）默认**关闭**，
-故正式构建下 `src/simcore/` 仍零浮点；但 CI 若扫到 `fixed.h` 会命中该段，
-需在 grep 中排除 **`#ifdef SIMCORE_ENABLE_REFERENCE_FLOAT` 区块**（或只在启用该宏的
-测试 TU 里包含）。建议 CI 命令统计「正式 TU（不定义该宏）」的命中数。
+**实现**：`mulM` / `divM` 均按 `|a·b|`（或 `|a·1000|`、`|b|`）做 half-away 舍入再取回符号，全整数运算、逐位确定；
+恒有 `mulM(-a,b) == -mulM(a,b)`、`divM(-a,b) == -divM(a,b)`、`divM(a,-b) == -divM(a,b)`。
+`roundM/floorM/ceilM` 本就分正负，未改；`divIntM`（纯整数截断，无 round 步骤）未改，**已标记待议**。
+
+**连带**：ADR-005 D1 已同步更新（口径 + 原因 + 日期）；golden 向量按新口径**全部重算**
+（`tests/golden_fixed_vectors.h`：mulM 484 条 / divM 492 条，生成器 `tools/gen_golden_fixed.py`）；
+新增用例 10 逐条断言 golden 向量 + 符号对称 + ±2.5/±1.5/±0.5 边界。
+
+### 4.4 已裁决：CI「无浮点」grep 限定【正式 TU】（PHASE3-L1-Q1 裁决）
+
+ADR-005 V3 要求 `src/simcore/` 零浮点命中，但 `fixed.h` 末尾的**浮点参考镜像**
+（`#ifdef SIMCORE_ENABLE_REFERENCE_FLOAT`）会被扫到。**裁决口径**：
+
+1. **只统计未定义该宏的正式 TU**（`src/simcore` 下 `.h/.cpp`）；该宏仅在
+   `tests/test_runner.cpp` 内、包含 simcore 头之前定义。
+2. 参考镜像块**必须集中**在单个 `#ifdef` 区块内，首尾加显式标记注释
+   `// [CI-EXCLUDE-BEGIN]` / `// [CI-EXCLUDE-END]`（见 `fixed.h`）。
+3. CI 扫描前先剔除该区块，并剔除注释（注释里的 `double/float/std::sqrt` 是文档，不算代码）。
+
+执行：`./build.sh check`（或随 `./build.sh` 一起跑），命中数必须为 0，否则门禁 FAIL。
 
 ---
 

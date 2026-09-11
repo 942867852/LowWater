@@ -4,6 +4,7 @@ rem build.bat · 构建 simcore L1（测试套件 + CLI）
 rem --------------------------------------------------------------------------
 rem 工具链：MinGW GCC 6.3.0（无 cmake / make / ninja / MSVC）。
 rem 语言：C++14 兼容子集；-Wall -Wextra 必须 0 warning。
+rem ADR-005 V3 无浮点门禁见 build.sh 的 check_no_float（Git Bash: ./build.sh check）。
 rem ==========================================================================
 setlocal
 

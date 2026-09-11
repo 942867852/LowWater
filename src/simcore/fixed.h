@@ -96,24 +96,37 @@ inline Milli subSat(Milli a, Milli b) {
 }
 
 // ---------------------------------------------------------------------------
-// 乘（ADR-005 D1 逐字实现）：先升 int64，除 1000 归位，四舍五入（+500）
+// 乘：先升 int64，除 1000 归位，取整口径 = round half away from zero（对称取整）
 // ---------------------------------------------------------------------------
-// ⚠ 已知口径问题（待主理人裁决，见 README「发现的问题」第 3 条）：
-//   ADR-005 给的 `+500` 对【负积】是"向 +∞ 方向偏置"的（例：p = -1600 →
-//   (-1100)/1000 = -1，而"四舍五入"期望 -2）。本实现严格照 ADR 字面执行以
-//   保证逐位可复现；如主理人偏好"绝对值四舍五入"，改一行即可，但必须重新
-//   生成 golden 向量。
+// 【口径裁决 · Phase3 · PHASE3-L1-Q1 · 2025-09-11】
+//   原 ADR-005 字面实现 `(p + 500) / 1000` 对【负积】是「向 +∞ 方向偏置」的：
+//     p = -2500 → (-2500 + 500) / 1000 = -2000 / 1000 = -2 ，而「四舍五入」期望 -3。
+//   （注：C++ 整数除法向零截断，故对正积 +2500 → +3 恰好正确，只有负积漏掉。）
+//   单向偏置在资源模拟里是【系统性漂移源】：经济系统存在借贷对称性
+//   （S3 的 reservedByPromise、S4 的 DELIVER/违约 delta 都有正负两向），
+//   长期会让账目持续漏损且难以归因。故裁决改为【对称取整】：
+//     |p| 四舍五入后取回原符号（round half away from zero）。
+//   ⇒ mulM(+2.5) = +3 ；mulM(-2.5) = -3 ；且恒有 mulM(-a,b) == -mulM(a,b)。
+//   加法取整可复现性不依赖浮点：整数除法向零截断，负分支对 |p| 做 +500 再截断
+//   即得 half away from zero，全为整数运算、逐位确定。
 // ---------------------------------------------------------------------------
 inline Milli mulM(Milli a, Milli b) {
-    MilliL p = (MilliL)a * (MilliL)b;          // |p| ≤ ~4.6e18 < 2^63，不溢出
-    MilliL q = (p + 500) / 1000;
+    const MilliL p = (MilliL)a * (MilliL)b;    // |p| ≤ ~4.6e18 < 2^63；-p 亦不溢出
+    const MilliL q = (p >= 0) ? ((p + 500) / 1000)
+                              : (-(((-p) + 500) / 1000));
     if (q > (MilliL)kMilliMax) { ++fixedStats().satMul; if (fixedSatAssertEnabled()) assert(0 && "[simcore::mulM] 上溢"); return kMilliMax; }
     if (q < (MilliL)kMilliMin) { ++fixedStats().satMul; if (fixedSatAssertEnabled()) assert(0 && "[simcore::mulM] 下溢"); return kMilliMin; }
     return (Milli)q;
 }
 
 // ---------------------------------------------------------------------------
-// 除（ADR-005 D1 逐字实现）：先升 int64，先乘 1000 再除；b != 0 断言
+// 除：先升 int64，先乘 1000 再除；取整口径与 mulM 一致 = round half away from zero
+// ---------------------------------------------------------------------------
+// 【同类问题 · PHASE3-L1-Q1 一并修】原实现 `(a*1000 + b/2) / b`：
+//   当 b 为负、或 a 与 b 异号时，`b/2` 的符号与「向零截断」叠加，产生与
+//   mulM 同源的偏置（例：divM(-100.0, 3.0) 旧值 -33332，绝对值舍入应为 -33333）。
+//   现改为对 |a*1000| 与 |b| 做 half-away 舍入，再按 sign(a)*sign(b) 取回符号。
+//     divM(+a,b) == -divM(-a,b) 且 divM(a,-b) == -divM(a,b) 恒成立。
 // ---------------------------------------------------------------------------
 inline Milli divM(Milli a, Milli b) {
     if (b == 0) {
@@ -121,8 +134,11 @@ inline Milli divM(Milli a, Milli b) {
         assert(0 && "[simcore::divM] 除零");
         return 0;
     }
-    MilliL p = (MilliL)a * 1000 + (b / 2);
-    MilliL q = p / b;
+    const MilliL n  = (MilliL)a * 1000;                        // 分子
+    const MilliL nb = (n >= 0) ? n : -n;                       // |分子|
+    const MilliL db = (b >= 0) ? (MilliL)b : -(MilliL)b;       // |分母|
+    const MilliL mag = (nb + db / 2) / db;                     // |a/b| × 1000，half-away
+    const MilliL q  = ((n >= 0) == (b >= 0)) ? mag : -mag;     // 结果符号 = sign(n)*sign(b)
     if (q > (MilliL)kMilliMax) { ++fixedStats().satMul; return kMilliMax; }
     if (q < (MilliL)kMilliMin) { ++fixedStats().satMul; return kMilliMin; }
     return (Milli)q;
@@ -218,9 +234,16 @@ static_assert(SIMCORE_MILLI_INT(5) == 5000,        "CRIT_MARGIN 5");
 // ---------------------------------------------------------------------------
 // 用途：ADR-005 V2「10 日递推：milli vs double 参考实现」的漂移测试。
 // 默认【关闭】，因此正式构建下 src/simcore/ 仍然是零浮点（满足 ADR-005 V3
-// 的 CI 静态检查）。启用后，CI 的「无浮点」grep 需排除本段 —— 见 README
-// 「发现的问题」第 1 条。
+// 的 CI 静态检查）。
+//
+// 【CI 口径 · PHASE3-L1-Q1 裁决】本镜像块【必须集中】在这一处，且首尾用显式
+// 标记注释框定：
+//     // [CI-EXCLUDE-BEGIN]  ...  // [CI-EXCLUDE-END]
+// 「无浮点」静态检查只统计【未定义 SIMCORE_ENABLE_REFERENCE_FLOAT 的正式 TU】，
+// 并在扫描前先剔除本区块（见 build.sh 的 check-no-float 与 README §4.4）。
+// 任何新增的浮点参考代码都必须放进本区块，不得散落别处。
 // ---------------------------------------------------------------------------
+// [CI-EXCLUDE-BEGIN]
 #ifdef SIMCORE_ENABLE_REFERENCE_FLOAT
 
 namespace simcore {
@@ -249,5 +272,6 @@ struct RateAccumRef {
 }  // namespace simcore
 
 #endif  // SIMCORE_ENABLE_REFERENCE_FLOAT
+// [CI-EXCLUDE-END]
 
 #endif  // SIMCORE_FIXED_H

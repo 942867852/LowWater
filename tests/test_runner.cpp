@@ -1,5 +1,5 @@
 // ============================================================================
-// tests/test_runner.cpp · simcore L1 验证套件（9 条用例）
+// tests/test_runner.cpp · simcore L1 验证套件（10 条用例）
 // ----------------------------------------------------------------------------
 // 自研迷你测试框架（无第三方依赖）：CHECK 宏 + 计数器 + 失败时非零退出码。
 // 语言约束：C++14 兼容子集（禁用 C++17/20 特性）。
@@ -10,7 +10,7 @@
 // 运行：
 //   build/test_runner.exe        # 退出码 0 = 全 PASS
 //
-// 用例清单（与任务 PHASE3-L1 的 9 条一一对应）：
+// 用例清单（与任务 PHASE3-L1 的 9 条一一对应 + PHASE3-L1-Q1 新增第 10 条）：
 //   1 ADR-002 分流独立性 / 无状态 / 乱序无关 / 跳步正确性
 //   2 ADR-002 存档往返（不存 per-stream counter）后继续 10 日逐位相同
 //   3 ADR-005 定点无漂移（milli vs double 参考镜像）+ 浮点漂移演示
@@ -20,6 +20,7 @@
 //   7 事件总线：归因链可回放；step > 3 被检出
 //   8 写队列：当日写不可见（读昨日快照）→ 日切发布后可见；排序键正确
 //   9 性能实测（120 实体，FULL≤32）：每 tick 平均耗时 + 8 游戏小时快进耗时
+//  10 ADR-005 D1（修订）mulM/divM 对称取整：golden 向量 + 符号对称 + ±2.5/±1.5/±0.5
 // ============================================================================
 
 // 打开 fixed.h 的「浮点参考镜像」（仅本测试 TU；simcore 正式构建仍零浮点）。
@@ -39,6 +40,9 @@
 #include <chrono>
 
 #include "simcore/simcore.h"
+
+// 定点 golden 向量（自动生成，勿手改）：python tools/gen_golden_fixed.py
+#include "golden_fixed_vectors.h"
 
 using namespace simcore;
 
@@ -611,11 +615,90 @@ static bool test9_performance() {
 }
 
 // ============================================================================
+// 用例 10 · ADR-005 D1（修订）· mulM/divM 对称取整 + golden 向量 + 舍入边界
+// ----------------------------------------------------------------------------
+// 契约：ADR-005 D1（PHASE3-L1-Q1 裁决）—— round half away from zero（对称取整）。
+//   ① golden 向量逐条命中（全符号组合 + 半边界，由 tools/gen_golden_fixed.py 生成）
+//   ② mulM(-a,b) == -mulM(a,b)、divM(-a,b) == -divM(a,b)、divM(a,-b) == -divM(a,b)
+//   ③ ±2.5 / ±1.5 / ±0.5 三个舍入边界逐位验证（−2.5→−3、+2.5→+3）
+// ============================================================================
+static bool test10_symmetricRounding() {
+    // --- 10a golden mulM 向量逐条命中（生成于新口径） -----------------------
+    int mulBad = 0;
+    for (int i = 0; i < golden::kMulVectorCount; ++i) {
+        const golden::FixedVec& v = golden::kMulVectors[i];
+        if (mulM(v.a, v.b) != v.expect) {
+            ++mulBad;
+            if (mulBad <= 5)
+                std::printf("    [FAIL] mulM(%d,%d)=%d 期望 %d\n",
+                            (int)v.a, (int)v.b, (int)mulM(v.a, v.b), (int)v.expect);
+        }
+    }
+    CHECK_EQ_I64(mulBad, 0, "10a golden mulM 向量全部命中");
+    std::printf("    10a golden mulM 向量：%d 条，未命中 %d 条\n",
+                golden::kMulVectorCount, mulBad);
+
+    // --- 10b golden divM 向量逐条命中（含除数有符号 / 异号） -----------------
+    int divBad = 0;
+    for (int i = 0; i < golden::kDivVectorCount; ++i) {
+        const golden::FixedVec& v = golden::kDivVectors[i];
+        if (divM(v.a, v.b) != v.expect) {
+            ++divBad;
+            if (divBad <= 5)
+                std::printf("    [FAIL] divM(%d,%d)=%d 期望 %d\n",
+                            (int)v.a, (int)v.b, (int)divM(v.a, v.b), (int)v.expect);
+        }
+    }
+    CHECK_EQ_I64(divBad, 0, "10b golden divM 向量全部命中");
+    std::printf("    10b golden divM 向量：%d 条，未命中 %d 条\n",
+                golden::kDivVectorCount, divBad);
+
+    // --- 10c 符号对称性：op(-x) == -op(x)（对所有测试向量成立） --------------
+    int symMul = 0, symDiv = 0;
+    for (int i = 0; i < golden::kMulVectorCount; ++i) {
+        const golden::FixedVec& v = golden::kMulVectors[i];
+        if (mulM(-v.a, v.b) != -mulM(v.a, v.b)) ++symMul;   // 取反 a
+        if (mulM(v.a, -v.b) != -mulM(v.a, v.b)) ++symMul;   // 取反 b
+    }
+    for (int i = 0; i < golden::kDivVectorCount; ++i) {
+        const golden::FixedVec& v = golden::kDivVectors[i];
+        if (divM(-v.a, v.b) != -divM(v.a, v.b)) ++symDiv;   // 取反分子
+        if (divM(v.a, -v.b) != -divM(v.a, v.b)) ++symDiv;   // 取反分母（有符号）
+    }
+    CHECK_EQ_I64(symMul, 0, "10c mulM(-a,b) == -mulM(a,b) 对全部向量成立");
+    CHECK_EQ_I64(symDiv, 0, "10c divM(-a,b) == -divM(a,b) 且 divM(a,-b) == -divM(a,b)");
+    std::printf("    10c 对称性违例：mulM=%d, divM=%d（跨 %d+%d 条向量）\n",
+                symMul, symDiv, golden::kMulVectorCount, golden::kDivVectorCount);
+
+    // --- 10d 三个舍入边界值逐位验证（真值 ±2.5 / ±1.5 / ±0.5） ---------------
+    //   构造：乘数 b = 1（milli），使 a×b/1000 恰好落在 x.5 上（a = 2500/1500/500）。
+    //   旧口径下负分支得 -2 / -1 / 0（向 +∞ 偏置）；新口径应为 -3 / -2 / -1。
+    {
+        const Milli b = 1;
+        const Milli av[3] = { SIMCORE_MILLI_PARTS(2, 500),   // 2.5 → 商 2.5
+                              SIMCORE_MILLI_PARTS(1, 500),   // 1.5 → 商 1.5
+                              SIMCORE_MILLI_PARTS(0, 500) };  // 0.5 → 商 0.5
+        const Milli expPos[3] = { 3, 2, 1 };
+        const Milli expNeg[3] = { -3, -2, -1 };
+        bool ok = true;
+        for (int i = 0; i < 3; ++i) {
+            const Milli p = mulM(av[i], b);
+            const Milli n = mulM(-av[i], b);
+            if (p != expPos[i] || n != expNeg[i] || n != -p) ok = false;
+            std::printf("    10d mulM(%+d,1)=%+d (=%+.3f)   mulM(%+d,1)=%+d (对称)\n",
+                        (int)av[i], (int)p, p / 1000.0, (int)(-av[i]), (int)n);
+        }
+        CHECK_TRUE(ok, "10d ±2.5/±1.5/±0.5 → ±3/±2/±1（逐位，且 op(-x)==-op(x)）");
+    }
+    return true;
+}
+
+// ============================================================================
 // main
 // ============================================================================
 int main() {
     std::printf("================================================================\n");
-    std::printf(" simcore L1 验证套件（9 条用例）\n");
+    std::printf(" simcore L1 验证套件（10 条用例）\n");
     std::printf(" 版本: gameVersion=%s simSchema=%u streamRegistry=%u\n",
                 simcoreVersion().gameVersion,
                 (unsigned)simcoreVersion().simSchemaVersion,
@@ -633,6 +716,7 @@ int main() {
     runCase("7 · 事件总线归因链（step>3 检出）",             test7_attribution);
     runCase("8 · 写队列快照语义 + 排序键",                   test8_writeQueue);
     runCase("9 · 性能实测（120 实体）",                      test9_performance);
+    runCase("10 · ADR-005 对称取整 + golden 向量 + 舍入边界", test10_symmetricRounding);
 
     std::printf("================================================================\n");
     std::printf(" 用例: %d PASS / %d FAIL    检查点: %ld 个，失败 %ld 个\n",
