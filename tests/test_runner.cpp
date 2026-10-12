@@ -47,6 +47,9 @@
 // 定点 golden 向量（自动生成，勿手改）：python tools/gen_golden_fixed.py
 #include "golden_fixed_vectors.h"
 
+// Story 级验收用例的 golden 文件助手（见 tests/STORY_CASE_TEMPLATE.md）
+#include "golden_io.h"
+
 using namespace simcore;
 
 // ============================================================================
@@ -834,11 +837,44 @@ static bool test11_viewProjectionReadOnly() {
 }
 
 // ============================================================================
+// 用例 12 · Story 级验收用例模板示范（E0-S4）
+// ----------------------------------------------------------------------------
+// 这是「加一条 Story 级验收用例」的**可跑样例**（模板见 tests/STORY_CASE_TEMPLATE.md）：
+//   ① 固定 seed 常量（禁运行时随机）；
+//   ② 判据落成 golden 键值对（worldHash / 计数），首次用 GOLDEN_UPDATE=1 生成；
+//   ③ 失败时 golden_io 逐条打印 want/got。
+// 为什么选「2 日 worldHash + 归因账本规模」作示范：它是**确定性可复现**的，
+// 能在任何机器上稳定命中，不依赖行为树/经济（那些要等 Epic 1 落地后再补 golden）。
+// ============================================================================
+static bool test12_storyGoldenSample() {
+    const uint64_t seed = 20250910ULL;   // ← 固定 seed 约定
+    const int days = 2;
+
+    World w; EventBus b; AttributionLog a; WriteQueue q;
+    w.init(seed, 120);
+    for (int i = 0; i < days * 1440; ++i)
+        w.tickOnce(1440 + (int64_t)i, &b, &a, &q);
+
+    gold::Golden gold_case("epic00__story_golden_sample");
+    gold_case.putHash("worldHash_d2_end", (unsigned long long)w.worldHash(1440 + (int64_t)(days * 1440) - 1));
+    gold_case.putU64 ("attribution_links", (unsigned long long)a.size());
+    gold_case.putU64 ("unattributed", (unsigned long long)a.unattributedCount());
+    gold_case.putU64 ("lod_switch_total", (unsigned long long)w.lodSwitchTotal());
+
+    bool ok = true;
+    const int mism = gold_case.finish(&ok);
+    CHECK_TRUE(ok, "12 golden 向量命中（worldHash / 归因账本 / LOD 切换数）");
+    if (!ok) std::printf("    [dump] seed=%I64u days=%d mismatch=%d\n",
+                         (unsigned long long)seed, days, mism);
+    return true;
+}
+
+// ============================================================================
 // main
 // ============================================================================
 int main() {
     std::printf("================================================================\n");
-    std::printf(" simcore L1 验证套件（11 条用例）\n");
+    std::printf(" simcore L1 验证套件（12 条用例）\n");
     std::printf(" 版本: gameVersion=%s simSchema=%u streamRegistry=%u\n",
                 simcoreVersion().gameVersion,
                 (unsigned)simcoreVersion().simSchemaVersion,
@@ -858,6 +894,7 @@ int main() {
     runCase("9 · 性能实测（120 实体）",                      test9_performance);
     runCase("10 · ADR-005 对称取整 + golden 向量 + 舍入边界", test10_symmetricRounding);
     runCase("11 · PHASE4-000A 投影只读不变量（ViewSnapshot/WorldSignalRegistry）", test11_viewProjectionReadOnly);
+    runCase("12 · Story 级验收模板示范（golden：worldHash/归因账本）", test12_storyGoldenSample);
 
     std::printf("================================================================\n");
     std::printf(" 用例: %d PASS / %d FAIL    检查点: %ld 个，失败 %ld 个\n",

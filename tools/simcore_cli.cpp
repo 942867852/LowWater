@@ -137,11 +137,51 @@ static int cmdVerify(uint64_t seed, int days, bool injectMismatch) {
     return pass ? 0 : 1;
 }
 
+// ---------------------------------------------------------------------------
+// assert：归因链闭合校验（control-manifest §1-1c/1d · ADR-004 V1/V2）
+//   跑一次确定性重放，断言：
+//     · UNATTRIBUTED == 0
+//     · step > 3 的违规数 == 0（越界即设计违规，不静默截断）
+//   通过退出码 0，任一不满足退出码 1（可直接进 CI）。
+//   注意：这是「归因账本自洽」校验；三跳闭合集（1a/1b/1e）需 Epic 1 的
+//   assert-attribution 场景工具，见 production/epics/epic-01-*.md。
+// ---------------------------------------------------------------------------
+static int cmdAssert(uint64_t seed, int days) {
+    std::printf("simcore_cli assert  seed=%I64u days=%d\n", (unsigned long long)seed, days);
+
+    World w; EventBus bus; AttributionLog al; WriteQueue wq; Clock c;
+    w.init(seed, kEntityCount);
+    c.reset(1, 0);
+
+    for (int d = 0; d < days; ++d) {
+        for (int k = 0; k < 1440; ++k)
+            c.advanceMs(1000, [&](int64_t t) { w.tickOnce(t, &bus, &al, &wq); });
+    }
+
+    uint8_t maxStep = 0;
+    for (size_t i = 0; i < al.links().size(); ++i)
+        if (al.links()[i].step > maxStep) maxStep = al.links()[i].step;
+
+    const uint64_t unattr = al.unattributedCount();
+    const size_t   viol   = al.violations().size();
+
+    std::printf("  links=%I64u  unattributed=%I64u  violations=%I64u  maxStep=%u  sameSystemSkipped=%I64u\n",
+                (unsigned long long)al.size(), (unsigned long long)unattr,
+                (unsigned long long)viol, (unsigned)maxStep,
+                (unsigned long long)al.sameSystemSkipped());
+
+    const bool ok = (unattr == 0) && (viol == 0) && (maxStep <= 3);
+    std::printf("  RESULT: %s\n", ok ? "PASS（UNATTRIBUTED==0 且 maxStep<=3）"
+                                     : "FAIL（存在断链或越界跳）");
+    return ok ? 0 : 1;
+}
+
 static void usage() {
     std::printf(
         "用法:\n"
         "  simcore_cli run    --seed <N> --days <D> --mode tick|fastforward\n"
         "  simcore_cli verify --seed <N> --days <D> [--inject-mismatch]\n"
+        "  simcore_cli assert --seed <N> --days <D>\n"
         "  （--inject-mismatch 仅供 CI 自检「失败退出码」路径）\n");
 }
 
@@ -178,6 +218,9 @@ int main(int argc, char** argv) {
     }
     if (std::strcmp(cmd, "verify") == 0) {
         return cmdVerify(seed, days, injectMismatch);
+    }
+    if (std::strcmp(cmd, "assert") == 0) {
+        return cmdAssert(seed, days);
     }
     usage();
     return 2;
