@@ -4,7 +4,7 @@
 - **作者**：engineering-lead（程基岩）
 - **状态**：**草案** —— 依赖 2 个 BLOCKER 签收（见 §11）与 ADR-001 引擎选型拍板
 - **上游**：`design/gdd/game-concept.md`、`06-consistency-review.md`、`systems/00..07`（10 份）
-- **配套**：`adr/ADR-000`（架构评审）· `adr/ADR-001`（引擎）· `adr/ADR-002`（RNG）· `adr/ADR-003`（离屏 LOD）· `adr/ADR-004`（事件总线）· `adr/ADR-005`（定点数）
+- **配套**：`adr/ADR-000`（架构评审）· `adr/ADR-001`（引擎）· `adr/ADR-002`（RNG）· `adr/ADR-003`（离屏 LOD）· `adr/ADR-004`（事件总线）· `adr/ADR-005`（定点数）· **`view-contract.md`（表现层只读投影契约 · §6 数据层契约的表现层侧唯一定义处）**
 - **纪律**：本文档**不重写设计**。所有 ID / 常量 / 接口签名与设计文档逐字一致；如发现设计问题，只在 §11「待裁决」提出，不就地改动。
 
 ---
@@ -665,7 +665,9 @@ simcore-cli export-attribution --from 1 --to 10                                 
 
 1. **引擎参考缺失**：无 `docs/engine-reference/<engine>/VERSION.md`。Godot 4 / Unity 6 的当前版本、GDExtension ABI、Burst 浮点确定性边界均需实测或官方依据。
 2. **GTX 1060 渲染冒烟未做**：2×2km 地形 + 77 角色 + 昼夜色温的实际帧预算未知。建议在 ADR-001 拍板后、Core 早期做一次 2 天冒烟。
-3. **S8 区域内容 / S9 呈现与交互未写**：`ContainerDef` 完整字段、`WorldSignalRegistry` 字段级契约、`travelMin` 路程常量表来源未定。Core 期需占位实现并保持接口不变。
+3. **S8 区域内容 / S9 呈现与交互未写**：
+   - ✅ **已闭合 · `R7`**：`ViewSnapshot` / `WorldSignalRegistry` 的**字段级契约** → 见 `docs/architecture/view-contract.md`（**唯一定义处**；实现载体 `src/simcore/view.h`；举证 `tests/test_runner.cpp` 用例 11）。**命名已冻结**，Phase 4 三路并行（UX 规格 / 资产规格 / Epic 拆分）只准引用、不得改名。
+   - ⏳ 仍缺：`ContainerDef` 完整字段、`travelMin` 路程常量表来源（依赖 S8）。Core 期需占位实现并保持接口不变。
 4. **S0 §B5 明示的 stub**：导航与路点插值、天气与季节（Extended）、序列化格式与存档槽位。Core 期需简化实现，且不得引入超越函数。
 5. **S3 完整价格公式未参与精度核算**：ADR-005 的 10 日递推偏差（<1e-3）是在简化模型上算的，S3 实装后需重跑。
 

@@ -101,7 +101,12 @@ Quantity.cluster → unit 增列：FOOD → "portion"
 | 岗位 `rated` | water_01:2 / water_02:2 / patrol:1 / watch:1 / mend:1 / care:1（idle 反算 1） | water_01:2（`postYieldMul 0.7`）/ patrol:1 / watch:1 / mend:1 / care:1（idle 1） |
 | 满员产出 / 日耗（同序） | WATER 42/27 · FOOD 3.0/9 · AMMO 4/3.3 · MEDS 0/0.3 · FUEL 0/1.5 · SEED 0/0.2 | WATER 14.7/21 · FOOD 3.0/7 · AMMO 4/2.6 · MEDS 1.2/0.4 · FUEL 0/1.0 · SEED 0.5/0.15 |
 | **结构性净收支** | **WATER +15 L**（唯一盈余）· FOOD 紧平衡（靠 `WILD_FOOD` +4 与拾荒补足）· **MEDS −0.3 / FUEL −1.5 / SEED −0.2 全缺** | **WATER −6.3 L**（致命）· FOOD −2（靠菌类 +2 与拾荒）· **MEDS +0.8 / SEED +0.35**（唯一盈余） |
-| 起始公共仓 / `safeDays` | WATER 216 L · FOOD 72 → **8 天**（水 8 / 食 8，双项齐平，任何一跳立刻可见） | WATER 126 L · FOOD 42 → **6 天**（水 6 / 食 6） |
+| 起始公共仓 / `safeDays` | WATER 216 L · FOOD 72 · **MEDS 0.4 dose · FUEL 2.0 L · SEED 0.3 portion** → **8 天**（水 8 / 食 8，双项齐平，任何一跳立刻可见） | WATER 126 L · FOOD 42 · **MEDS 0.5 dose · FUEL 1.5 L · SEED 0.2 portion** → **6 天**（水 6 / 食 6） |
+
+> **S3 起始仓回填（PHASE4-000B · 关闭 `06-consistency-review.md §九-5.1` 与 S7 附录 B-2）**：主理人裁定"**不得为 0**"（否则第一天无可交易物），故为 MEDS / FUEL / SEED 三簇给出**非零存量**。取值纪律：**每簇起始量均 < `SAFETY_FLOOR_DAYS(2) × 日耗[c]`**（河谷阈值 MEDS 0.6 / FUEL 3.0 / SEED 0.4；井窖阈值 MEDS 0.8 / FUEL 2.0 / SEED 0.3）→ 配给式 `avail[c]=max(0,effStock−2×日耗)=0`，故 **S7 §6.3 首日样例的短fall 数值与「全 urgency 1」逐字不变**（河谷 FUEL 1.35 L > MEDS 0.18 剂 > SEED 0.09 份；井窖 FUEL 1.05 L > MEDS 0.14 > SEED 0.07）。
+> **`safeDays` 不受影响**：木桶只取 WATER / FOOD 两项（§3.5），三簇存量**不进分子** → 河谷仍 **8 天**、井窖仍 **6 天**（Core 验收 1 基线保持）。
+> **字段级冻结**：起始存量写进 `Warehouse.stock`（6 键域），**与本文 `data-contracts.md §1` 的 `Warehouse` 结构一致**。
+> ⚠ **待主理人裁（见回传⑥）**：本裁定括注"这三簇两个社区均不自产"对 **FUEL 成立**，但对 **MEDS / SEED 不成立**——S3 §2.4 明列 `jing_cell.care_01` 产 `MEDS 1.2 / SEED 0.5`（裁决 7 已回填 S2）。故上述起始量对 **FUEL 是"存量持续消耗、缺口持续存在"，对井窖 MEDS/SEED 则是"起始缓冲 + 满员产出净盈余"**。本份**未擅改 §2.4 产能表**（属已裁决项），请主理人裁决是否需将井窖 MEDS/SEED 也改为不自产。
 
 > 设计意图：河谷的木桶短板会**从水平衡漂移到食物**（它产水不产粮），井窖的短板**永远是水**。玩家对河谷的正确动作是"送粮换水"，对井窖是"送水换药"——两个社区需要的是**相反的服务**，这才有跑商的必要。
 

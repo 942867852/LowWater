@@ -1,5 +1,5 @@
 // ============================================================================
-// tests/test_runner.cpp · simcore L1 验证套件（10 条用例）
+// tests/test_runner.cpp · simcore L1 验证套件（11 条用例）
 // ----------------------------------------------------------------------------
 // 自研迷你测试框架（无第三方依赖）：CHECK 宏 + 计数器 + 失败时非零退出码。
 // 语言约束：C++14 兼容子集（禁用 C++17/20 特性）。
@@ -21,6 +21,7 @@
 //   8 写队列：当日写不可见（读昨日快照）→ 日切发布后可见；排序键正确
 //   9 性能实测（120 实体，FULL≤32）：每 tick 平均耗时 + 8 游戏小时快进耗时
 //  10 ADR-005 D1（修订）mulM/divM 对称取整：golden 向量 + 符号对称 + ±2.5/±1.5/±0.5
+//  11 PHASE4-000A 表现层投影契约：只读投影不改仿真（ViewSnapshot/WorldSignalRegistry）
 // ============================================================================
 
 // 打开 fixed.h 的「浮点参考镜像」（仅本测试 TU；simcore 正式构建仍零浮点）。
@@ -40,6 +41,8 @@
 #include <chrono>
 
 #include "simcore/simcore.h"
+// 表现层只读投影契约（docs/architecture/view-contract.md 的实现载体）
+#include "simcore/view.h"
 
 // 定点 golden 向量（自动生成，勿手改）：python tools/gen_golden_fixed.py
 #include "golden_fixed_vectors.h"
@@ -694,11 +697,148 @@ static bool test10_symmetricRounding() {
 }
 
 // ============================================================================
+// 用例 11 · PHASE4-000A · 表现层投影契约：只读投影不改仿真
+// ----------------------------------------------------------------------------
+// 契约：docs/architecture/view-contract.md（架构 R7 已闭合）。
+//   ① 投影不变量：反复调用 projectView（含模拟相机绕行 / 改朝向 / 改分辨率 /
+//      改帧率）→ worldHash 与 tickLevel 完全不变。
+//   ② 与既有用例 5 的区别：用例 5 只验 simLOD 不含视锥（相机 → tickLevel）；
+//      本用例验【整个投影通道】（含新增 actor / signal / board / hud / camera
+//      字段）在【与仿真锁步交替】时都不扰动仿真 —— 双世界逐位对比。
+//   ③ 契约 G-SIG-LEAD：WorldSignal 的 applyTick − installTick ≥ 360 可查询。
+// ============================================================================
+static bool test11_viewProjectionReadOnly() {
+    const uint64_t seed = 20250910ULL;
+    const int      N    = 1440;            // 1 游戏日
+    const int64_t  start = 1440;
+
+    // --- 11a 契约信号样例：四种 changeKind，lead 恰为 360（6 游戏小时） ------
+    SimWorldSignalRegistry reg;
+    std::memset(&reg, 0, sizeof(reg));
+    reg.nextSignalId = 104;
+    reg.count = 4;
+    const char* sigNames[4] = { "FOOTPRINT_DEVIATION", "WATCH_ADDED",
+                                "STASH_MOVED", "TRIPWIRE" };
+    bool leadAllOk = true;
+    for (uint32_t k = 0; k < 4; ++k) {
+        SimWorldSignal& s = reg.entries[k];
+        s.signalId = 100 + k;
+        s.kind     = (uint8_t)k;                       // REROUTE/ADD_WATCH/DEEPEN_STASH/SET_TRAP
+        s.state    = (uint8_t)SIMVIEW_SIG_ACTIVE;
+        std::snprintf(s.refId, sizeof(s.refId), "%s:loc.he_valley.well_path", sigNames[k]);
+        s.installTick = (uint64_t)(start + 60);
+        s.applyTick   = (uint64_t)(start + 60 + SIMVIEW_SIGNAL_LEAD_MIN_TICKS);  // = 6 游戏小时
+        s.expireTick  = 0;
+        if (!simview_signal_lead_ok(&s)) leadAllOk = false;
+    }
+    CHECK_TRUE(leadAllOk, "11a 四种 changeKind 的 lead ≥ 6 游戏小时（G-SIG-LEAD）");
+    CHECK_EQ_I64(simview_signal_lead_ticks(&reg.entries[0]), SIMVIEW_SIGNAL_LEAD_MIN_TICKS,
+                 "11a lead_ticks = 360");
+    {   // 违反样例：lead = 359 < 360
+        SimWorldSignal bad; std::memset(&bad, 0, sizeof(bad));
+        bad.state = (uint8_t)SIMVIEW_SIG_ACTIVE;
+        bad.installTick = 1000; bad.applyTick = 1000 + SIMVIEW_SIGNAL_LEAD_MIN_TICKS - 1;
+        CHECK_TRUE(simview_signal_lead_ok(&bad) == 0, "11a lead < 360 被 accessor 判不合法");
+    }
+    {   // expired 派生 + state 三值
+        SimWorldSignal ex = reg.entries[0];
+        CHECK_TRUE(simview_signal_expired(&ex) == 0, "11a ACTIVE 未 expired");
+        ex.state = (uint8_t)SIMVIEW_SIG_EXPIRED;
+        CHECK_TRUE(simview_signal_expired(&ex) == 1, "11a expired := state != ACTIVE");
+        ex.state = (uint8_t)SIMVIEW_SIG_REVOKED;
+        CHECK_TRUE(simview_signal_expired(&ex) == 1, "11a REVOKED 亦 expired");
+    }
+
+    // --- 11b 投影输出 = 世界当前值的只读镜像（抽查） -------------------------
+    {
+        World w; w.init(seed, 120);
+        SimViewSnapshot snap; std::memset(&snap, 0, sizeof(snap));
+        SimViewCamera cam; std::memset(&cam, 0, sizeof(cam)); cam.centerDirTurn = 12345;
+        projectView(w, start, &reg, cam, snap);
+        CHECK_TRUE(snap.actorCount == (uint32_t)w.entityCount(), "11b actorCount 镜像实体数");
+        CHECK_EQ_U64(snap.signals[0].signalId, reg.entries[0].signalId, "11b signal 镜像 registry");
+        CHECK_EQ_I64((int64_t)snap.camera.centerDirTurn, 12345, "11b camera 原样回读（相机派生）");
+        CHECK_EQ_I64((int64_t)snap.hud.dayKey, (int64_t)dayKeyOf(start), "11b HUD.dayKey = dayKeyOf(absTick)");
+        CHECK_EQ_I64((int64_t)snap.actors[0].posMm[0], (int64_t)w.entity(0).posX, "11b actor posMm 镜像世界坐标");
+    }
+
+    // --- 11c 锁步双世界：A 每 tick 前做多次投影（相机绕行 + 改分辨率 + 改帧率），
+    //          B 只跑仿真 → worldHash / tickLevel 必须逐位相同 -----------------
+    World wA, wB; EventBus bA, bB; AttributionLog lA, lB; WriteQueue qA, qB;
+    wA.init(seed, 120); wB.init(seed, 120);
+    std::vector<uint64_t> hA, hB;               // 每 60 tick 的 worldHash
+    std::vector<uint64_t> lvlA, lvlB;            // 末日全量 tickLevel 指纹
+    SimViewSnapshot snap; std::memset(&snap, 0, sizeof(snap));
+    uint64_t projCalls = 0;
+    bool camerasDiffer = false, havePrev = false;
+    uint16_t prevCenter = 0;
+    for (int i = 0; i < N; ++i) {
+        const int64_t t = start + (int64_t)i;
+        // A：先投影若干次（次数随 i 变 → 模拟帧率变化）
+        const int framesThisTick = (i % 5) + 1;
+        for (int f = 0; f < framesThisTick; ++f) {
+            SimViewCamera cam; std::memset(&cam, 0, sizeof(cam));
+            const uint16_t yaw = (uint16_t)((i * 997 + f * 131) & 0xFFFF);   // 相机绕行
+            cam.centerDirTurn = yaw; cam.fovHalfTurnH = 10922;
+            cam.fovHalfTurnV  = 8192; cam.playerYawTurn = yaw;
+            // 分辨率是表现层参数，根本不进 projectView（结构性：不接口）；
+            // 这里显式制造两个不同的取值，证明它无论如何都改不动仿真。
+            const uint32_t resW = (f & 1) ? 1920u : 1280u;
+            const uint32_t resH = (f & 1) ? 1080u :  720u;
+            (void)resW; (void)resH;
+            projectView(wA, t, &reg, cam, snap);
+            ++projCalls;
+            if (snap.actorCount > 0) {
+                if (havePrev && snap.camera.centerDirTurn != prevCenter) camerasDiffer = true;
+                prevCenter = snap.camera.centerDirTurn; havePrev = true;
+            }
+        }
+        wA.tickOnce(t, &bA, &lA, &qA);          // 推进 1 tick（投影之后）
+        wB.tickOnce(t, &bB, &lB, &qB);          // B：全程无任何投影
+        if ((i + 1) % 60 == 0) { hA.push_back(wA.worldHash(t)); hB.push_back(wB.worldHash(t)); }
+        if (i == N - 1) {
+            for (size_t e = 0; e < wA.entityCount(); ++e) {
+                lvlA.push_back((uint64_t)wA.tickLevelOf((uint32_t)e));
+                lvlB.push_back((uint64_t)wB.tickLevelOf((uint32_t)e));
+            }
+        }
+    }
+    int mism = 0;
+    for (size_t i = 0; i < hA.size() && i < hB.size(); ++i) if (hA[i] != hB[i]) ++mism;
+    CHECK_EQ_I64((int64_t)hA.size(), (int64_t)hB.size(), "11c 两侧 hash 采样点数相同");
+    CHECK_EQ_I64(mism, 0, "11c 投影通道存在下 worldHash 序列与无投影世界逐位相同");
+    CHECK_TRUE(lvlA == lvlB, "11c 投影通道存在下 tickLevel 序列完全不变");
+    CHECK_TRUE(projCalls > 0, "11c 投影确被调用");
+    CHECK_TRUE(camerasDiffer, "11c 相机绕行使投影输出变化（证明投影确在做事，非空操作）");
+    std::printf("    11c 投影调用 %I64u 次；hash 采样 %d 点 mism=%d；tickLevel %d 项一致=%s\n",
+                (unsigned long long)projCalls, (int)hA.size(), mism, (int)lvlA.size(),
+                (lvlA == lvlB) ? "是" : "否");
+
+    // --- 11d 相机绕行不改变 tickLevel / worldHash（用例 5 的投影通道版本） ----
+    {
+        World wc; wc.init(seed, 120);
+        const int64_t ct = start;
+        const uint64_t h0 = wc.worldHash(ct);
+        std::vector<uint8_t> l0, l1;
+        for (size_t e = 0; e < wc.entityCount(); ++e) l0.push_back((uint8_t)wc.tickLevelOf((uint32_t)e));
+        for (int k = 0; k < 16; ++k) {
+            SimViewCamera cam; std::memset(&cam, 0, sizeof(cam));
+            cam.centerDirTurn = (uint16_t)(k * 4096);
+            projectView(wc, ct, &reg, cam, snap);   // 投影 16 次，相机绕一整圈
+        }
+        CHECK_EQ_U64(wc.worldHash(ct), h0, "11d 相机绕行 16 次后 worldHash 不变");
+        for (size_t e = 0; e < wc.entityCount(); ++e) l1.push_back((uint8_t)wc.tickLevelOf((uint32_t)e));
+        CHECK_TRUE(l0 == l1, "11d 相机绕行 16 次后 tickLevel 序列不变");
+    }
+    return true;
+}
+
+// ============================================================================
 // main
 // ============================================================================
 int main() {
     std::printf("================================================================\n");
-    std::printf(" simcore L1 验证套件（10 条用例）\n");
+    std::printf(" simcore L1 验证套件（11 条用例）\n");
     std::printf(" 版本: gameVersion=%s simSchema=%u streamRegistry=%u\n",
                 simcoreVersion().gameVersion,
                 (unsigned)simcoreVersion().simSchemaVersion,
@@ -717,6 +857,7 @@ int main() {
     runCase("8 · 写队列快照语义 + 排序键",                   test8_writeQueue);
     runCase("9 · 性能实测（120 实体）",                      test9_performance);
     runCase("10 · ADR-005 对称取整 + golden 向量 + 舍入边界", test10_symmetricRounding);
+    runCase("11 · PHASE4-000A 投影只读不变量（ViewSnapshot/WorldSignalRegistry）", test11_viewProjectionReadOnly);
 
     std::printf("================================================================\n");
     std::printf(" 用例: %d PASS / %d FAIL    检查点: %ld 个，失败 %ld 个\n",

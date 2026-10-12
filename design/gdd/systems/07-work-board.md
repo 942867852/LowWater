@@ -306,7 +306,7 @@ SEDIMENT_DAYS / BOARD_TRAVEL_QUANTUM             // Proposal，见附录 A
 
 ### 6.3 【必答】Core 期两个社区的样例板（第一天）
 
-> **计算前提（请一并审阅）**：S3 §2.4 只给出 WATER / FOOD 的起始公共仓；**其余四簇本样例按起始 = 0 计算**（待 S3 确认，见附录 B-2）。配给 `perCapita` 取 S3 §3.4（MEDS 0.02 / FUEL 0.15 / SEED 0.01）；`urgency = clamp(ceil(shortfall / 配给target), 1, 5)`。玩家假设 VIGOR 5（`CARRY_CAP` 50 kg）空手站在两社区之间的岔口，距河谷仓 12 分钟、距井窖仓 16 分钟。
+> **计算前提（PHASE4-000B 已更新）**：S3 §2.4 现已给出五簇起始公共仓（WATER / FOOD + **MEDS / FUEL / SEED 非零但低于安全地板**）。因三簇起始量均 `< SAFETY_FLOOR_DAYS(2) × 日耗`，配给 `avail = max(0, effStock − 2×日耗) = 0` → **本样例短fall 数值不变**（= 配给 target）。配给 `perCapita` 取 S3 §3.4（MEDS 0.02 / FUEL 0.15 / SEED 0.01）；`urgency = clamp(ceil(shortfall / 配给target), 1, 5)`。玩家假设 VIGOR 5（`CARRY_CAP` 50 kg）空手站在两社区之间的岔口，距河谷仓 12 分钟、距井窖仓 16 分钟。
 
 **河谷 `he_valley`（pop 9，起始 `safeDays` 8）**
 短fall：WATER 0 / FOOD 0 / **FUEL 1.35 L** / **MEDS 0.18 dose** / **SEED 0.09 portion** → 全部 `urgency 1`。
@@ -416,7 +416,7 @@ SEDIMENT_DAYS / BOARD_TRAVEL_QUANTUM             // Proposal，见附录 A
 ## 附录 B · 待主理人裁决 / 接口请求（7 项）
 
 1. **B-1 · `urgency` 是否对玩家显示数字**：S5 §8-A9 把 `GapSignal.urgency` 列为"玩家可见数值"之一；本份主张**玩家侧只显示语言标签 + u4/u5 红标，数字仅进调试面板**（防"按数字排序刷"、防认知过载）。二者需择一，请裁决。
-2. **B-2 · 起始公共仓的 MEDS / FUEL / SEED 量**：S3 §2.4 只给了 WATER / FOOD。本份样例按 **0** 计算；若 S3 有非零起始量，§6.3 的短fall 数字需重算（板的结构与排序规则不变）。
+2. **B-2 · 起始公共仓的 MEDS / FUEL / SEED 量 —— 已关闭（PHASE4-000B）**：S3 §2.4 已回填三簇非零起始量（河谷 MEDS 0.4 / FUEL 2.0 / SEED 0.3；井窖 MEDS 0.5 / FUEL 1.5 / SEED 0.2），全部低于 `SAFETY_FLOOR_DAYS × 日耗` → **§6.3 短fall 与排序不变**。⚠ 遗留待裁：S3 §2.4 仍记 `jing_cell.care_01` 产 MEDS/SEED，"两社区均不自产"仅对 FUEL 成立（见 S3 §2.4 回填注）。
 3. **B-3 · 请求 S5 暴露 `CreedConflictClusters(cid) -> ClusterId[]`**：供 `kind = "CREED"` 的反推。该表可由 S5 §2.4 六卡静态导出（`he_valley → [FOOD]`、`jing_cell → [SEED, WATER]`），本份**只读不定义**。若 S5 不提供，本份降级为"信条型一律归入 `STOCK`"，代价是留宿义务与真实缺口混在一栏。
 4. **B-4 · S7 → S3 的接口形态**：契约写"S3（`reservedByPromise`，当玩家接下带承诺的缺口时）"。本份解释为 **S7 只暴露 `getLinkedReserve(orderId)` 供 S4 在 `reserve()` 前做冲突校验，写入仍归 S4/S3**——理由：板上若出现"接下并预留"按钮，就等于给缺口装了勾选框（违反已裁决 1）。请确认此解释，或改由 S9 提供该按钮（那样请一并撤回已裁决 1）。
 5. **B-5 · 请 S8 提供**：① 每社区缺口板的物理 `locationId`（社区门口）；② `pathLenMeters(a,b)` 静态表（缺失时 `travelMin` 恒取 0，排序退化为不区分距离）。
