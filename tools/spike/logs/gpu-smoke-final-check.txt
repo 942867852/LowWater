@@ -1,0 +1,112 @@
+Godot Engine v4.5.stable.official.876b29033 - https://godotengine.org
+
+[gpu-smoke] 采样帧数=8 预热=4 对照=8
+[gpu-smoke] >>> 阶段 P0_base
+[gpu-smoke] 引擎版本=4.5-stable (official)
+[gpu-smoke] display_driver=headless
+[gpu-smoke] adapter=
+[gpu-smoke] api=
+[gpu-smoke] 实体总数=120 full=32
+[gpu-smoke] 视口=(64, 64)
+[gpu-smoke]   P0_base          mean=6.900 p50=6.900 p95=6.905 p99=6.905 max=6.905 (ms)
+[gpu-smoke] >>> 阶段 P1_bubbles
+[gpu-smoke]   P1_bubbles       mean=6.900 p50=6.893 p95=6.938 p99=6.938 max=6.938 (ms)
+[gpu-smoke] >>> 阶段 P2_hudtext
+[gpu-smoke]   P2_hudtext       mean=6.901 p50=6.901 p95=6.912 p99=6.912 max=6.912 (ms)
+[gpu-smoke] >>> 阶段 P3_signals
+[gpu-smoke]   P3_signals       mean=6.900 p50=6.900 p95=6.908 p99=6.908 max=6.908 (ms)
+[gpu-smoke] >>> 阶段 P4_carry
+[gpu-smoke]   P4_carry         mean=6.899 p50=6.901 p95=6.907 p99=6.907 max=6.907 (ms)
+[gpu-smoke] >>> 阶段 P5_matrix
+[gpu-smoke]   P5_matrix        mean=6.901 p50=6.904 p95=6.909 p99=6.909 max=6.909 (ms)
+[gpu-smoke] >>> 阶段 P6_fxaa
+[gpu-smoke]   P6_fxaa          mean=6.900 p50=6.900 p95=6.935 p99=6.935 max=6.935 (ms)
+[gpu-smoke] >>> 阶段 P7_camera
+[gpu-smoke]   P7_camera        mean=6.900 p50=6.898 p95=6.912 p99=6.912 max=6.912 (ms)
+[gpu-smoke] >>> 阶段 P8_lighting
+[gpu-smoke]   P8_lighting      mean=6.900 p50=6.897 p95=6.909 p99=6.909 max=6.909 (ms)
+[gpu-smoke] >>> 阶段 P9_lod_control
+# LowWater · GPU 渲染冒烟测试报告
+
+**判定：`INVALID_NO_GPU`**　　本包在 headless / 无 GPU 环境下运行，帧时间无意义
+
+生成时间：2026-09-12T19:27:12
+
+## 1. 机器 / 驱动
+
+| 项 | 值 |
+|---|---|
+| 引擎版本 | `4.5-stable (official)` |
+| 渲染后端 | `gl_compatibility（OpenGL 3，不支持 screen_space_aa）` |
+| display_driver | `headless` |
+| GPU |  |
+| GPU API |  |
+| FXAA 可用 | 否（后端不支持 screen_space_aa，P6 增量不含 FXAA） |
+| 显示器 | 0×0 @ -1.0 Hz |
+| 视口实际尺寸 | 64×64  ⚠ 非 1080p |
+| CPU | 13th Gen Intel(R) Core(TM) i5-13400F（16 线程） |
+
+## 2. 判据逐条
+
+| # | 判据 | 实测 | 判定 |
+|---|---|---|---|
+| C1 | 最坏帧 p95 ≤ 16.70 ms（含仿真预算 4.880 ms） | 11.789 ms | ✅ PASS |
+| C2 | 渲染侧信息通道增量 < 1.20 ms | 0.000 ms | ✅ PASS |
+| C3 | TRIPWIRE 屏幕最小宽度 ≥ 1.5 px | -1.000 px（样本 0） | ❌ FAIL |
+| C4 | LOD：可读性保持锥内无载体切换（N2） | executed_in_cone=0 / deferred_in_cone=15 | ✅ PASS |
+| C5 | LOD：0–60m 内始终有可见载体（N1） | missing_carrier=0 | ✅ PASS |
+| C6 | 对照组：关闭 N2 闸门后应检出锥内切换（证明检测器非空转） | control_executed_in_cone=15 | ✅ PASS |
+
+## 3. 帧时间（ms）
+
+| 阶段 | 增量内容 | mean | p50 | p95 | p99 | max |
+|---|---|---:|---:|---:|---:|---:|
+| P0_base | —（地形 + 120 实体 + 正午光照） | 6.900 | 6.900 | 6.905 | 6.905 | 6.905 |
+| P1_bubbles | +需求气泡 | 6.900 | 6.893 | 6.938 | 6.938 | 6.938 |
+| P2_hudtext | +名签 | 6.901 | 6.901 | 6.912 | 6.912 | 6.912 |
+| P3_signals | +4 类 WorldSignal | 6.900 | 6.900 | 6.908 | 6.908 | 6.908 |
+| P4_carry | +携带物剪影 | 6.899 | 6.901 | 6.907 | 6.907 | 6.907 |
+| P5_matrix | +色彩矩阵 | 6.901 | 6.904 | 6.909 | 6.909 | 6.909 |
+| P6_fxaa | +FXAA | 6.900 | 6.900 | 6.935 | 6.935 | 6.935 |
+| P7_camera | +相机绕行/转头 | 6.900 | 6.898 | 6.912 | 6.912 | 6.912 |
+| P8_lighting | +昼夜四档切换 | 6.900 | 6.897 | 6.909 | 6.909 | 6.909 |
+
+- 常态帧（P6，全通道 + 静态相机）p95 = **6.935 ms**
+- 最坏帧渲染侧（P8）p95 = **6.909 ms** / max = 6.909 ms
+- 加回仿真预算 4.880 ms → **最坏帧 = 11.789 ms**（对照 16.70 ms）
+
+## 4. 各子项渲染成本（差分法，ms）
+
+| 子项 | E4 分配 | 实测增量 | 偏差 | 判定 |
+|---|---:|---:|---:|---|
+| 需求气泡（≤72 quad / 1 draw call / 图集 instanced） | 0.10 | 0.001 | -0.099 | ✅ |
+| 字幕 / 名签 / 长文本（引擎 UI） | 0.15 | 0.000 | -0.150 | ✅ |
+| WorldSignal 世界痕迹（4 类，活跃 ≤24 处） | 0.50 | -0.001 | -0.501 | ✅ |
+| 携带物剪影（≤3 挂点 / actor） | 0.10 | -0.000 | -0.100 | ✅ |
+| 色盲 / 高对比色彩矩阵（1 fullscreen pass） | 0.05 | 0.001 | -0.049 | ✅ |
+| FXAA（默认抗锯齿） | 0.30 | -0.000 | -0.300 | ✅ |
+| **信息通道合计** | **1.20** | **0.000** | **-1.200** | ✅ |
+
+## 5. 与 E4 推算的偏差
+
+| 项 | 推算 | 实测 | 偏差 | 比值 |
+|---|---:|---:|---:|---:|
+| 最坏帧 | 10.68 ms | 11.789 ms | +1.109 ms | 1.10× |
+| 常态帧 | 5.80 ms | 6.935 ms | +1.135 ms | — |
+
+## 6. TRIPWIRE ≥1.5px 钳制验证
+
+- 世界厚度：0.020 m；屏幕最小宽度实测：**-1.000 px**（样本 0）
+- 未钳制（原始世界厚度 0.020 m 直接投影）：**-1.000 px**
+- 阈值：1.5 px → ❌ 不成立，需屏幕空间最小宽度钳制
+
+## 7. LOD / 可读性
+
+- N2 锥内实际切换：0（判据 = 0）
+- N2 因锥内被推迟的切换：15（闸门生效的证据）
+- N1 0–60m 无载体：0（判据 = 0）
+- 信息项 · 距离带指定载体缺失：7（N2 合法推迟会造成计数，非缺陷）
+- 对照组（关闭闸门）检出锥内切换：15
+
+[gpu-smoke] 已写出：D:/CppProgram/LowWater/tools/gpu-smoke/results/result.json
+[gpu-smoke] 已写出：D:/CppProgram/LowWater/tools/gpu-smoke/results/report.md

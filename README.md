@@ -32,10 +32,14 @@ docs/architecture/
   architecture.md              主架构文档（分层 / tick / LOD / 预算 / 工具链）
   accessibility.md             可访问性分级与特性矩阵
   control-manifest.md          Core 七条验收 → 可执行验证手段
+  godot-cpp-bridge.md          godot-cpp 桥接「不降级」路径手册（已实测跑通）
+  gpu-smoke-env.md             换机 GPU 渲染冒烟环境清单
   adr/ADR-000 ~ ADR-005        架构决策记录
 src/simcore/                   确定性仿真地基（header-only）
 tests/                         测试
-tools/                         辅助脚本
+tools/
+  gpu-smoke/                   换机 GPU 渲染冒烟包（纯 GDScript，零编译）
+  spike/                       引擎选型实测证据包（VERSIONS.txt / logs / abi-probe / bridge）
 ```
 
 ## 构建与运行
@@ -48,6 +52,7 @@ tools/                         辅助脚本
 | MSVC 19.44 | `D:\VS2026\VC\Tools\MSVC\14.44.35207` | 完整 C++17/20 支持；**编本项目源码必须加 `/utf-8`**，否则中文常量报 `C2001` |
 | CMake 4.1.1 | `D:\VS2026\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin` | 可用（此前误记为"无 cmake"） |
 | Ninja 1.12.1 | 同上的 `Ninja\` 子目录 | 可用 |
+| **Godot 4.5-stable** | `tools/gpu-smoke/_bin/`（*.exe 已 gitignore） | **表现层引擎（已钉定）**；`4.5.stable.official.876b29033`，zip SHA512 已核验（见 `tools/spike/VERSIONS.txt §1`） |
 
 ```bash
 # MinGW 路径（C++14 子集，simcore 的验证下限）
@@ -80,11 +85,21 @@ cl /utf-8 /std:c++14 /O2 /EHsc /I src tests/test_runner.cpp /Fe:build\test_runne
 - [x] Phase 3 技术搭建（架构 + 5 条 ADR + 可访问性 + 控制清单）
 - [x] Phase 3 · simcore L1 骨架（9 用例 / 55 检查点全 PASS，双工具链 hash 逐位相同）
 - [x] Phase 2 · GDD 全集闭合（S0–S9 共 10 份）
-- [x] 引擎选型（ADR-001 终版：`simcore` + Godot 4；8 条条件全 PASS，**待用户确认**）
+- [x] 引擎选型（ADR-001 **已确认生效**：`simcore` + **Godot 4.5-stable**；8 条条件全 PASS）
+- [x] 桥接层最小链路打通（godot-cpp 4.5-stable 已编出；GDExtension 在 Godot 4.5 中加载成功，GDScript 已调到 `simcore` 函数）
 - [ ] Phase 4 预制作 / 垂直切片
 
 ## 已知阻塞与放行闸门
 
-- **引擎选型待用户确认**（ADR-001）：`simcore`（C++ 静态库 + C ABI，引擎无关）+ Godot 4 表现层。
-- **放行闸门 1**：`godot-cpp` 完整构建未跑通（沙箱禁止 `cmd` 派生进程，属环境限制非工具链缺失）——需在普通终端跑 `scons platform=windows api_version=4.7`。
-- **放行闸门 2**：**GTX 1060 真机渲染冒烟未做**（开发机为 GT 730）。E4 目前是"可复现推算"（最坏帧 10.68ms / 16.7ms），垂直切片前必须转实测。
+- ~~**引擎选型待用户确认**~~ → **已确认**（2026-09-13）：`simcore`（C++ 静态库 + C ABI，引擎无关）+ **Godot 4.5-stable** 表现层。
+- ~~**放行闸门 1**：`godot-cpp` 完整构建未跑通~~ → **已闭合（2026-09-13）**。
+  用 **CMake 4.1.1 + Ninja 1.12.1 + MSVC 19.44** 编出 godot-cpp（`godot-4.5-stable` tag），
+  并用 `cl`/`link` 编出最小 GDExtension DLL；Godot 4.5 加载成功，
+  GDScript 调到 `simcore` 函数（`LOWWATER_BRIDGE_OK`，`world_hash=334314409100154065`，两次一致）。
+  手册见 `docs/architecture/godot-cpp-bridge.md`；可复现脚本见 `tools/spike/bridge/build-bridge.sh`。
+  **因此不需要降级为"裸 GDExtension C API"**——上一轮跑不通的根因是受限终端无法派生
+  Windows 命令解释器子进程，不是工具链缺失。
+- **放行闸门 2（唯一未闭合）**：**GTX 1060 真机渲染冒烟未做**（开发机为 GT 730）。
+  E4 目前是"可复现推算"（最坏帧 10.68ms / 16.7ms），垂直切片前必须转实测。
+  冒烟包已就绪：`tools/gpu-smoke/`（纯 GDScript，零编译，拷走即可跑）；
+  换机清单见 `docs/architecture/gpu-smoke-env.md`。

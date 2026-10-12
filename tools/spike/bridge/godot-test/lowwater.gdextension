@@ -1,0 +1,9 @@
+[configuration]
+
+entry_symbol = "lowwater_bridge_init"
+compatibility_minimum = 4.5
+
+[libraries]
+
+windows.debug.x86_64 = "res://bin/lowwater_bridge.windows.template_debug.x86_64.dll"
+windows.editor.x86_64 = "res://bin/lowwater_bridge.windows.template_debug.x86_64.dll"

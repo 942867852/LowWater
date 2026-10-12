@@ -1,0 +1,9 @@
+Godot Engine v4.5.stable.official.876b29033 - https://godotengine.org
+
+LOWWATER_BRIDGE_OK
+engine=4.5-stable (official)
+game_version=0.1.0-l1
+schema_version=1
+stream_registry_version=1
+world_hash(20250913,1440)=334314409100154065
+repeat_identical=true

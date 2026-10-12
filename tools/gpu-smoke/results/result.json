@@ -1,0 +1,228 @@
+{
+  "budgets": {
+    "est_normal_frame_ms": 5.8,
+    "est_worst_frame_ms": 10.68,
+    "frame_budget_ms": 16.7,
+    "info_channel_budget_ms": 1.2,
+    "sim_worst_budget_ms": 4.88
+  },
+  "criteria": [
+    {
+      "desc": "最坏帧 p95 ≤ 16.70 ms（含仿真预算 4.880 ms）",
+      "id": "C1",
+      "measured": "29.124 ms",
+      "pass": false
+    },
+    {
+      "desc": "渲染侧信息通道增量 < 1.20 ms",
+      "id": "C2",
+      "measured": "7.567 ms",
+      "pass": false
+    },
+    {
+      "desc": "TRIPWIRE 屏幕最小宽度 ≥ 1.5 px",
+      "id": "C3",
+      "measured": "1.500 px（样本 769）",
+      "pass": true
+    },
+    {
+      "desc": "LOD：可读性保持锥内无载体切换（N2）",
+      "id": "C4",
+      "measured": "executed_in_cone=0 / deferred_in_cone=30",
+      "pass": true
+    },
+    {
+      "desc": "LOD：0–60m 内始终有可见载体（N1）",
+      "id": "C5",
+      "measured": "missing_carrier=0",
+      "pass": true
+    },
+    {
+      "desc": "对照组：关闭 N2 闸门后应检出锥内切换（证明检测器非空转）",
+      "id": "C6",
+      "measured": "control_executed_in_cone=13",
+      "pass": true
+    }
+  ],
+  "deviation_vs_estimate": {
+    "delta_ms": 18.444,
+    "est_normal_frame_ms": 5.8,
+    "est_worst_frame_ms": 10.68,
+    "measured_normal_p95_ms": 19.615,
+    "measured_worst_frame_ms": 29.124,
+    "normal_delta_ms": 13.815,
+    "ratio": 2.72696629213483
+  },
+  "environment": {
+    "collected_at": "2026-09-12T18:11:21",
+    "cpu_name": "13th Gen Intel(R) Core(TM) i5-13400F",
+    "cpu_threads": 16,
+    "display_driver": "Windows",
+    "engine_version": "4.5-stable (official)",
+    "gpu_adapter": "GeForce GT 730",
+    "gpu_api_version": "3.3.0 NVIDIA 391.35",
+    "os": "Windows",
+    "rd_available": false,
+    "refresh_hz": 60.0,
+    "rendering_driver": "gl_compatibility（OpenGL 3，不支持 screen_space_aa）",
+    "screen_size": [
+      1920,
+      1080
+    ],
+    "viewport_size": [
+      1920,
+      1080
+    ]
+  },
+  "frame": {
+    "normal_p95_ms": 19.615,
+    "sim_budget_added_ms": 4.88,
+    "worst_frame_max_ms": 29.756,
+    "worst_frame_p95_ms": 29.124,
+    "worst_render_max_ms": 24.876,
+    "worst_render_p95_ms": 24.244
+  },
+  "fxaa_applied": false,
+  "information_channel_ms": 7.56734666666668,
+  "lod": {
+    "band_missing": 379,
+    "deferred_in_cone": 30,
+    "executed_in_cone": 0,
+    "executed_in_cone_control": 13,
+    "missing_carrier": 0
+  },
+  "over_budget_subitems": [
+    "hudtext",
+    "signals",
+    "carry",
+    "matrix"
+  ],
+  "phases": [
+    {
+      "max_ms": 12.39,
+      "mean_ms": 11.73431,
+      "min_ms": 11.043,
+      "n": 300,
+      "p50_ms": 11.692,
+      "p95_ms": 11.962,
+      "p99_ms": 12.086,
+      "phase": "P0_base"
+    },
+    {
+      "max_ms": 12.539,
+      "mean_ms": 11.7289333333333,
+      "min_ms": 11.11,
+      "n": 300,
+      "p50_ms": 11.743,
+      "p95_ms": 11.874,
+      "p99_ms": 12.033,
+      "phase": "P1_bubbles"
+    },
+    {
+      "max_ms": 12.711,
+      "mean_ms": 11.9511866666667,
+      "min_ms": 11.035,
+      "n": 300,
+      "p50_ms": 11.954,
+      "p95_ms": 12.175,
+      "p99_ms": 12.554,
+      "phase": "P2_hudtext"
+    },
+    {
+      "max_ms": 15.363,
+      "mean_ms": 14.1927533333333,
+      "min_ms": 13.414,
+      "n": 300,
+      "p50_ms": 14.177,
+      "p95_ms": 14.372,
+      "p99_ms": 14.459,
+      "phase": "P3_signals"
+    },
+    {
+      "max_ms": 15.675,
+      "mean_ms": 15.1147266666667,
+      "min_ms": 14.597,
+      "n": 300,
+      "p50_ms": 15.118,
+      "p95_ms": 15.28,
+      "p99_ms": 15.607,
+      "phase": "P4_carry"
+    },
+    {
+      "max_ms": 19.777,
+      "mean_ms": 19.3202666666666,
+      "min_ms": 18.734,
+      "n": 300,
+      "p50_ms": 19.351,
+      "p95_ms": 19.483,
+      "p99_ms": 19.604,
+      "phase": "P5_matrix"
+    },
+    {
+      "max_ms": 20.151,
+      "mean_ms": 19.3016566666667,
+      "min_ms": 18.532,
+      "n": 300,
+      "p50_ms": 19.263,
+      "p95_ms": 19.615,
+      "p99_ms": 19.699,
+      "phase": "P6_fxaa"
+    },
+    {
+      "max_ms": 22.298,
+      "mean_ms": 18.67506,
+      "min_ms": 16.38,
+      "n": 300,
+      "p50_ms": 18.266,
+      "p95_ms": 21.656,
+      "p99_ms": 22.181,
+      "phase": "P7_camera"
+    },
+    {
+      "max_ms": 24.876,
+      "mean_ms": 21.8239033333333,
+      "min_ms": 18.621,
+      "n": 300,
+      "p50_ms": 21.636,
+      "p95_ms": 24.244,
+      "p99_ms": 24.402,
+      "phase": "P8_lighting"
+    }
+  ],
+  "scene": {
+    "entities": 120,
+    "entities_full": 32,
+    "terrain_m": 2000,
+    "viewport": [
+      1920,
+      1080
+    ],
+    "viewport_is_1080p": true,
+    "world_signal_sites": 24
+  },
+  "subitem_alloc_ms": {
+    "bubbles": 0.1,
+    "carry": 0.1,
+    "fxaa": 0.3,
+    "hudtext": 0.15,
+    "matrix": 0.05,
+    "signals": 0.5
+  },
+  "subitem_cost_ms": {
+    "bubbles": -0.00537666666665615,
+    "carry": 0.921973333333334,
+    "fxaa": -0.0186099999999811,
+    "hudtext": 0.222253333333333,
+    "matrix": 4.20553999999998,
+    "signals": 2.24156666666667
+  },
+  "tripwire": {
+    "min_px": 1.50008714199066,
+    "min_px_unclamped": 0.194722414412905,
+    "samples": 769,
+    "threshold_px": 1.5,
+    "world_thickness_m": 0.02
+  },
+  "verdict": "FAIL",
+  "verdict_note": "见 criteria 逐条判定"
+}

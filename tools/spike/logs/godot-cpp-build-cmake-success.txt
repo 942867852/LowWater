@@ -1,0 +1,16 @@
+$ cmake -B build-cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+$ ninja -C build-cmake -j 12
+--- head ---
+ninja: Entering directory `build-cmake'
+[0/2] Re-checking globbed directories...
+[1/1025] Generating bindings
+Built-in type config: float_64
+[2/1025] Building CXX object CMakeFiles\godot-cpp.dir\src\core\error_macros.cpp.obj
+[3/1025] Building CXX object CMakeFiles\godot-cpp.dir\src\core\memory.cpp.obj
+--- tail ---
+[1019/1025] Building CXX object CMakeFiles\godot-cpp.dir\gen\src\classes\xr_pose.cpp.obj
+[1020/1025] Building CXX object CMakeFiles\godot-cpp.dir\gen\src\variant\utility_functions.cpp.obj
+[1021/1025] Building CXX object CMakeFiles\godot-cpp.dir\gen\src\classes\xrvrs.cpp.obj
+[1022/1025] Building CXX object CMakeFiles\godot-cpp.dir\gen\src\classes\zip_packer.cpp.obj
+[1023/1025] Building CXX object CMakeFiles\godot-cpp.dir\gen\src\classes\zip_reader.cpp.obj
+[1024/1025] Linking CXX static library bin\libgodot-cpp.windows.template_debug..lib

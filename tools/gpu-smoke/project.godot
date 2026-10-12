@@ -1,0 +1,32 @@
+; ============================================================================
+; LowWater · GPU 渲染冒烟测试工程（纯 GDScript，零编译）
+; 目标引擎：Godot 4.5-stable  目标机：GTX 1060 6GB / 16GB RAM / 1080p
+; 说明：本工程【不依赖 simcore 的 .dll】，只测渲染负载。
+; ============================================================================
+
+config_version=5
+
+[application]
+
+config/name="lowwater-gpu-smoke"
+config/version="0.1"
+config/features=PackedStringArray("4.5")
+run/main_scene="res://smoke.tscn"
+config/quit_on_go_back=false
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1920
+window/size/window_height_override=1080
+window/size/borderless=true
+window/vsync/vsync_mode=0
+
+[rendering]
+
+anti_aliasing/quality/screen_space_aa=0
+
+[physics]
+
+common/physics_ticks_per_second=60

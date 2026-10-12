@@ -1,4 +1,4 @@
-# 构建产物
+# ── 构建产物 ──────────────────────────────────────────────
 /build/
 /out/
 *.exe
@@ -7,18 +7,39 @@
 *.a
 *.lib
 *.dll
+*.exp
+*.ilk
 *.pdb
 
-# 编辑器 / IDE
+# ── 编辑器 / IDE ──────────────────────────────────────────
 .vscode/
 .idea/
 *.user
 *.suo
 *.sln
 
-# WorkBuddy 会话数据（不属于仓库）
+# ── Godot ─────────────────────────────────────────────────
+# 引擎运行期用户数据（自动生成）
+Godot/
+# 引擎导入缓存
+.godot/
+
+# ── 下载与构建产物（可由脚本重建，体积大，不入库）──────────
+# godot-cpp 源码与构建产物（tools/spike/bridge/build-bridge.sh 自动下载）
+tools/spike/bridge/_godot-cpp/
+tools/spike/bridge/build/
+tools/spike/bridge/godot-test/bin/
+# 桥接层测试工程里的引擎缓存与编辑器配置
+tools/spike/bridge/godot-test/.godot/
+tools/spike/bridge/godot-test/Godot/
+# 临时下载/构建产物（可手工删除，约 1.6GB）
+tools/spike/_tmp/
+# GPU 冒烟包里的 Godot 二进制（由 fetch-godot 脚本获取，约 156MB）
+tools/gpu-smoke/_bin/
+
+# ── WorkBuddy 会话数据（不属于仓库）────────────────────────
 .workbuddy/
 
-# 临时文件
+# ── 临时文件 ──────────────────────────────────────────────
 *.tmp
 *.log

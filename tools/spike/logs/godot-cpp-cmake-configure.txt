@@ -1,0 +1,22 @@
+-- Found Python3: C:/Python314/python.exe (found suitable version "3.14.7", minimum required is "3.4") found components: Interpreter
+-- Auto-detected 16 CPU cores available for build parallelism.
+-- If not already cached, setting CMAKE_MSVC_RUNTIME_LIBRARY.
+	For more information please read godot-cpp/cmake/windows.cmake
+-- The CXX compiler identification is MSVC 19.44.35221.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: D:/VS2026/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Using 15 cores for multi-threaded compilation.
+-- GODOTCPP_GDEXTENSION_API_FILE = 'gdextension/extension_api.json'
+-- There are 2002 Files to generate
+-- Configuring done (7.4s)
+-- Generating done (0.7s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    BUILD_TESTING
+
+
+-- Build files have been written to: D:/CppProgram/LowWater/tools/spike/_tmp/godot-cpp-godot-4.5-stable/build-cmake

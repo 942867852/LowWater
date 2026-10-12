@@ -4,6 +4,14 @@
 - **配套文档**：`docs/architecture/engine-evaluation.md`（评估矩阵）· `docs/architecture/adr/ADR-001-engine-selection.md`（终版 ADR）
 - **纪律**：本目录**只放实测产物**。凡未跑通的，日志里保留失败原文，不美化、不删改。
 
+> ### ⚠️ 2026-09-13 更新（PHASE3-004）
+> 1. **引擎版本已改为 `Godot 4.5-stable`**（用户拍板，见 ADR-001 §9.1 Q3）。
+>    本文件中所有 **4.7.2** 的记录一律视为**历史留档**，以 `VERSIONS.txt §1` 的 4.5-stable 为准。
+> 2. **godot-cpp 已构建成功**（不再是"未跑通"）。路径：CMake + Ninja + MSVC；
+>    产物与桥接最小实现见 `bridge/`，成功输出见 `logs/bridge-godot45-call.txt`。
+>    `godot-cpp-build-attempt{1,2,3}*.log` 三条失败日志**保留**，作为对照，不删改。
+> 3. 新增 `bridge/` 子目录（最小 GDExtension 桥接：源码 + 构建脚本 + Godot 测试工程）。
+
 ---
 
 ## 0. 这个目录证明了什么（一句话索引）
